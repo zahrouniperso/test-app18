@@ -75,6 +75,7 @@ const PLATFORM_2_Y = GROUND_Y - 100; // 100px above ground
 const LEVELS = [
   {
     name: "Dublin",
+    greeting: "Howya",
     levelWidth: 3200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#0d1f18", ground: "#2f5c46", platform: "#3f7d5c", far: "#12281f", mid: "#1a3a2c", near: "#245039" },
@@ -97,6 +98,7 @@ const LEVELS = [
   },
   {
     name: "Berlin",
+    greeting: "Hallo",
     levelWidth: 3600,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#10131c", ground: "#3a4560", platform: "#4d5b82", far: "#1b2030", mid: "#232a3f", near: "#2c3550" },
@@ -124,6 +126,7 @@ const LEVELS = [
   },
   {
     name: "Munich",
+    greeting: "Servus",
     levelWidth: 4200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#0d1730", ground: "#22406a", platform: "#2f5a8f", far: "#0f1d3a", mid: "#16294d", near: "#1e3766" },
@@ -240,10 +243,13 @@ bindTouchButton("btnJump", () => (input.jump = true), () => (input.jump = false)
 
 // State-transition input: starting from the title screen, pausing/resuming,
 // and restarting after game over. Click/tap anywhere on the canvas, or
-// press Enter, to advance the title/game-over screens; P or Escape toggles
-// pause during play.
+// press Enter, to advance the title/name-entry/story/game-over/win
+// screens; P or Escape toggles pause during play.
 canvas.addEventListener("click", handlePrimaryAction);
 window.addEventListener("keydown", (e) => {
+  // Let the name-entry <input> handle its own keys (see below) instead of
+  // triggering game shortcuts like Space=jump or P=pause while typing.
+  if (document.activeElement === nameInput) return;
   if (e.code === "Enter") handlePrimaryAction();
   if (e.code === "KeyP" || e.code === "Escape") togglePause();
 });
@@ -251,8 +257,37 @@ window.addEventListener("keydown", (e) => {
 const pauseBtn = document.getElementById("pauseBtn");
 if (pauseBtn) pauseBtn.addEventListener("click", togglePause);
 
+const nameEntryPanel = document.getElementById("nameEntryPanel");
+const nameInput = document.getElementById("nameInput");
+const nameSubmitBtn = document.getElementById("nameSubmitBtn");
+
+function showNameEntry() {
+  gameState = "nameEntry";
+  nameEntryPanel.hidden = false;
+  nameInput.value = "";
+  nameInput.focus();
+}
+
+function submitName() {
+  const trimmed = nameInput.value.trim();
+  playerName = trimmed || "Player";
+  nameEntryPanel.hidden = true;
+  gameState = "story";
+}
+
+nameSubmitBtn.addEventListener("click", submitName);
+nameInput.addEventListener("keydown", (e) => {
+  e.stopPropagation(); // don't let Space/Enter/P reach the game shortcuts above
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitName();
+  }
+});
+
 function handlePrimaryAction() {
-  if (gameState === "title" || gameState === "gameover" || gameState === "win") {
+  if (gameState === "title") {
+    showNameEntry();
+  } else if (gameState === "story" || gameState === "gameover" || gameState === "win") {
     restartGame();
   }
 }
@@ -316,6 +351,7 @@ let scoreBase = 0; // score banked from levels already completed
 let boostsCollected = 0;
 let lives = STARTING_LIVES;
 let cityBannerTimer = 0; // seconds remaining to show the "Welcome to <city>" card
+let playerName = "Player"; // set once via the name-entry screen, kept across replays
 
 const SCORE_PER_PIXEL = 0.1; // distance-based score
 const SCORE_PER_BOOST = 50;
@@ -731,25 +767,41 @@ function drawPlayer() {
   ctx.restore();
 }
 
+// Lives shown as heart icons rather than a bare number: filled for
+// remaining lives, hollow for lives already lost.
+function drawHearts(x, y) {
+  const spacing = 22;
+  ctx.font = "20px sans-serif";
+  ctx.textAlign = "left";
+  for (let i = 0; i < STARTING_LIVES; i++) {
+    ctx.fillStyle = i < lives ? "#e0455f" : "#4a5270";
+    ctx.fillText(i < lives ? "♥" : "♡", x + i * spacing, y);
+  }
+}
+
 function drawHUD() {
   ctx.fillStyle = "#f2f2f2";
   ctx.font = "16px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(`${LEVELS[currentLevelIndex].name} — Lives: ${lives}`, 16, 26);
-  ctx.fillText(`Score: ${getScore()}`, 16, 46);
-  ctx.fillText(`Coffee boosts: ${boostsCollected}`, 16, 66);
+  ctx.fillText(LEVELS[currentLevelIndex].name, 16, 26);
+  drawHearts(16, 50);
+  ctx.fillStyle = "#f2f2f2";
+  ctx.font = "16px sans-serif";
+  ctx.fillText(`Score: ${getScore()}`, 16, 76);
+  ctx.fillText(`Coffee boosts: ${boostsCollected}`, 16, 96);
   if (player.boostTimer > 0) {
     ctx.fillStyle = "#ffcc66";
-    ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 86);
+    ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 116);
   }
 
   if (cityBannerTimer > 0) {
+    const level = LEVELS[currentLevelIndex];
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.fillRect(0, GAME_HEIGHT / 2 - 30, GAME_WIDTH, 60);
     ctx.fillStyle = "#ffffff";
     ctx.font = "28px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`Welcome to ${LEVELS[currentLevelIndex].name}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10);
+    ctx.fillText(`${level.greeting}, ${playerName}! Welcome to ${level.name}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10);
   }
 }
 
@@ -773,6 +825,73 @@ function drawTitleScreen() {
   ctx.fillText("(drop title-screen.png into assets/images/ to use your art)", GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
   drawStartPrompt();
+}
+
+// Dimmed backdrop shown behind the real HTML name-entry <input> overlay.
+function drawNameEntryBackground() {
+  if (titleImageLoaded) {
+    ctx.drawImage(titleImage, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+  } else {
+    ctx.fillStyle = "#10131c";
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+  }
+  ctx.fillStyle = "rgba(10, 12, 18, 0.55)";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+}
+
+// Breaks `text` into lines no wider than maxWidth and draws them centered,
+// starting at (x, y) with the given line height.
+function drawWrappedText(text, x, y, maxWidth, lineHeight) {
+  const words = text.split(" ");
+  let line = "";
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, y);
+      line = word;
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, y);
+  return y;
+}
+
+function drawStoryScreen() {
+  ctx.fillStyle = "#10131c";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+  ctx.fillStyle = "#ffcc66";
+  ctx.font = "bold 30px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("THE SHANTANU SIGN-OFF", GAME_WIDTH / 2, 90);
+
+  ctx.fillStyle = "#f2f2f2";
+  ctx.font = "18px sans-serif";
+  let y = 150;
+  y = drawWrappedText(
+    `Three cities stand between you and The Sign-Off, ${playerName}: Dublin, Berlin, and Munich.`,
+    GAME_WIDTH / 2, y, 720, 28
+  );
+  y = drawWrappedText(
+    "Run and jump past desks, printers, and patrolling coworkers. Watch out for gaps in the floor.",
+    GAME_WIDTH / 2, y + 36, 720, 28
+  );
+  y = drawWrappedText(
+    "Grab coffee cups for a temporary speed boost. You have 3 lives, shown as hearts, top-left.",
+    GAME_WIDTH / 2, y + 36, 720, 28
+  );
+  y = drawWrappedText(
+    "Reach the end of Munich to finally track down Shantanu and win the game!",
+    GAME_WIDTH / 2, y + 36, 720, 28
+  );
+
+  ctx.fillStyle = "#9aa4c0";
+  ctx.font = "15px sans-serif";
+  ctx.fillText("Arrows/WASD to move, Space/Up to jump, P or Esc to pause", GAME_WIDTH / 2, y + 60);
+
+  drawStartPromptText("CLICK OR PRESS ENTER TO BEGIN", GAME_HEIGHT - 50);
 }
 
 function drawStartPrompt() {
@@ -849,6 +968,14 @@ function drawStartPromptText(text, y) {
 function render() {
   if (gameState === "title") {
     drawTitleScreen();
+    return;
+  }
+  if (gameState === "nameEntry") {
+    drawNameEntryBackground();
+    return;
+  }
+  if (gameState === "story") {
+    drawStoryScreen();
     return;
   }
 

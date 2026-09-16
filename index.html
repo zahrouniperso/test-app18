@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="googlebot" content="noindex, nofollow">
   <title>Finding Shantanu</title>
-  <link rel="stylesheet" href="style.css?v=004">
+  <link rel="stylesheet" href="style.css?v=005">
 </head>
 <body>
   <!-- Client/UI layer: page shell, canvas mount point, and touch controls -->
@@ -16,6 +16,15 @@
 
       <!-- Always-visible pause toggle (mouse and touch) -->
       <button class="pause-btn" id="pauseBtn" aria-label="Pause or resume">&#10073;&#10073;</button>
+
+      <!-- Name entry overlay: real HTML input, shown only during the
+           'nameEntry' game state (see game.js). The canvas draws a
+           matching dimmed background behind it. -->
+      <div class="overlay-panel" id="nameEntryPanel" hidden>
+        <label for="nameInput">What should we call you?</label>
+        <input id="nameInput" type="text" maxlength="16" autocomplete="off" placeholder="Your name">
+        <button id="nameSubmitBtn" class="overlay-btn" type="button">Continue</button>
+      </div>
 
       <!-- On-screen touch controls (mobile) -->
       <div class="touch-controls" id="touchControls">
@@ -35,6 +44,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=004"></script>
+  <script src="game.js?v=005"></script>
 </body>
 </html>
