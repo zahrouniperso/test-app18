@@ -93,8 +93,8 @@ const LEVELS = [
     // Static blockers: the Luas/DART (Dublin trams/trains are equally
     // recognisable, and equally annoying). From-above hazard: seagulls.
     obstacles: [
-      { type: "block", x: 400, width: 70, height: 50, color: "#1f6f5c", label: "LUAS" },
-      { type: "block", x: 2450, width: 70, height: 50, color: "#1f6f5c", label: "DART" },
+      { type: "block", x: 400, width: 81, height: 42, visual: "luas" },
+      { type: "block", x: 2450, width: 108, height: 42, visual: "dart" },
       {
         type: "fallingSpawner", visual: "seagull", x: 1100, rangeWidth: 900,
         minInterval: 2.5, maxInterval: 4.5, fallSpeed: 140, width: 40, height: 28,
@@ -514,6 +514,16 @@ let powerupBeerLoaded = false;
 powerupBeerImage.onload = () => { powerupBeerLoaded = true; };
 powerupBeerImage.src = "assets/images/powerup-beer-pretzel.png";
 
+const obstacleLuasImage = new Image();
+let obstacleLuasLoaded = false;
+obstacleLuasImage.onload = () => { obstacleLuasLoaded = true; };
+obstacleLuasImage.src = "assets/images/obstacle-luas.png";
+
+const obstacleDartImage = new Image();
+let obstacleDartLoaded = false;
+obstacleDartImage.onload = () => { obstacleDartLoaded = true; };
+obstacleDartImage.src = "assets/images/obstacle-dart.png";
+
 function enterLevel(index) {
   loadLevel(index);
   furthestX = 0;
@@ -914,6 +924,14 @@ function drawObstacles() {
 
     if (o.visual === "elevator" && obstacleElevatorLoaded) {
       ctx.drawImage(obstacleElevatorImage, sx, y, o.width, o.height);
+      continue;
+    }
+    if (o.visual === "luas" && obstacleLuasLoaded) {
+      ctx.drawImage(obstacleLuasImage, sx, y, o.width, o.height);
+      continue;
+    }
+    if (o.visual === "dart" && obstacleDartLoaded) {
+      ctx.drawImage(obstacleDartImage, sx, y, o.width, o.height);
       continue;
     }
     if (o.visual === "dog" && drawObstacleSprite("dogRun", sx, y, o.width, o.height, o.dir === 1)) continue;
