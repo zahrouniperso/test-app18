@@ -59,54 +59,133 @@ const MAX_JUMP_DISTANCE = MOVE_SPEED * (2 * (-JUMP_VELOCITY / GRAVITY));
 
 /* ------------------------------------------------------------------ */
 /* 2. LEVEL DATA (Data Layer)                                          */
-/*    Edit these arrays to add/move content. Positions are in level-   */
-/*    space pixels (not screen space). The engine below reads them     */
-/*    generically, so new entries "just work" without touching update  */
-/*    or render code, as long as the `type` is one handled in the      */
-/*    OBSTACLE_HANDLERS / POWERUP_HANDLERS sections.                   */
+/*    Edit LEVELS to add/move content or add more cities. Positions    */
+/*    are in level-space pixels (not screen space). The engine below   */
+/*    reads them generically, so new entries "just work" without       */
+/*    touching update/render code, as long as the `type` is one        */
+/*    handled by the obstacle/power-up update+draw functions.          */
+/*                                                                      */
+/*    Floating-platform heights are kept under MAX_JUMP_HEIGHT (~122px */
+/*    above ground) and gap widths under MAX_JUMP_DISTANCE (~165px),   */
+/*    both defined in CONFIG above, so every jump stays reachable.     */
 /* ------------------------------------------------------------------ */
-
-const LEVEL_WIDTH = 4200;
-const PLAYER_START = { x: 80, y: GROUND_Y - PLAYER_HEIGHT };
-
-// Floating platforms (player can stand on top of these). Heights are kept
-// under MAX_JUMP_HEIGHT (~122px above ground) so they're jumpable directly
-// from the ground.
-const PLATFORM_1_Y = GROUND_Y - 90; // 90px above ground
+const PLATFORM_1_Y = GROUND_Y - 90;  // 90px above ground
 const PLATFORM_2_Y = GROUND_Y - 100; // 100px above ground
-const PLATFORMS = [
-  { x: 1900, y: PLATFORM_1_Y, width: 260, height: 24 }, // hosts a patrol obstacle
-  { x: 3100, y: PLATFORM_2_Y, width: 220, height: 24 },
+
+const LEVELS = [
+  {
+    name: "Dublin",
+    levelWidth: 3200,
+    playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
+    palette: { sky: "#0d1f18", ground: "#2f5c46", platform: "#3f7d5c", far: "#12281f", mid: "#1a3a2c", near: "#245039" },
+    platforms: [
+      { x: 1700, y: PLATFORM_1_Y, width: 240, height: 24 }, // hosts a patrol obstacle
+    ],
+    gaps: [
+      { x: 650, width: 100 },
+      { x: 1950, width: 110 },
+    ],
+    obstacles: [
+      { type: "block", x: 400, width: 36, height: 60 },
+      { type: "patrol", x: 1750, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1710, rangeEnd: 1900, speed: 90 },
+      { type: "block", x: 2450, width: 36, height: 60 },
+    ],
+    powerups: [
+      { type: "coffee", x: 900, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "coffee", x: 2750, y: GROUND_Y - 90, radius: 16, collected: false },
+    ],
+  },
+  {
+    name: "Berlin",
+    levelWidth: 3600,
+    playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
+    palette: { sky: "#10131c", ground: "#3a4560", platform: "#4d5b82", far: "#1b2030", mid: "#232a3f", near: "#2c3550" },
+    platforms: [
+      { x: 1900, y: PLATFORM_1_Y, width: 260, height: 24 }, // hosts a patrol obstacle
+      { x: 3100, y: PLATFORM_2_Y, width: 220, height: 24 },
+    ],
+    gaps: [
+      { x: 700, width: 100 },
+      { x: 1500, width: 120 },
+      { x: 2650, width: 130 },
+    ],
+    obstacles: [
+      { type: "block", x: 420, width: 36, height: 60 },
+      { type: "block", x: 1050, width: 36, height: 60 },
+      { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90 },
+      { type: "block", x: 2350, width: 36, height: 60 },
+      { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110 },
+    ],
+    powerups: [
+      { type: "coffee", x: 950, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "coffee", x: 2050, y: PLATFORM_1_Y - 60, radius: 16, collected: false },
+      { type: "coffee", x: 3400, y: GROUND_Y - 90, radius: 16, collected: false },
+    ],
+  },
+  {
+    name: "Munich",
+    levelWidth: 4200,
+    playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
+    palette: { sky: "#0d1730", ground: "#22406a", platform: "#2f5a8f", far: "#0f1d3a", mid: "#16294d", near: "#1e3766" },
+    platforms: [
+      { x: 1200, y: PLATFORM_1_Y, width: 200, height: 24 }, // hosts a patrol obstacle
+      { x: 2200, y: PLATFORM_2_Y, width: 200, height: 24 }, // hosts a patrol obstacle
+      { x: 3300, y: PLATFORM_1_Y, width: 220, height: 24 },
+    ],
+    gaps: [
+      { x: 600, width: 110 },
+      { x: 1500, width: 130 },
+      { x: 2600, width: 120 },
+      { x: 3600, width: 100 },
+    ],
+    obstacles: [
+      { type: "block", x: 380, width: 36, height: 60 },
+      { type: "patrol", x: 1220, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1210, rangeEnd: 1380, speed: 90 },
+      { type: "block", x: 1750, width: 36, height: 60 },
+      { type: "patrol", x: 2220, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 2210, rangeEnd: 2380, speed: 110 },
+      { type: "block", x: 2850, width: 36, height: 60 },
+      { type: "block", x: 3900, width: 36, height: 60 },
+    ],
+    powerups: [
+      { type: "coffee", x: 900, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "coffee", x: 2300, y: PLATFORM_2_Y - 60, radius: 16, collected: false },
+      { type: "coffee", x: 3450, y: GROUND_Y - 90, radius: 16, collected: false },
+    ],
+    // Final city: the level ends with Shantanu instead of just looping.
+    goal: { x: 4080, y: GROUND_Y },
+  },
 ];
 
-// Gaps in the ground floor — no ground is drawn/collidable in this x-range.
-// Falling through costs a life (same as hitting an obstacle). Widths are
-// kept under MAX_JUMP_DISTANCE (~165px) with margin for reaction time.
-const GAPS = [
-  { x: 700, width: 100 },
-  { x: 1500, width: 120 },
-  { x: 2650, width: 130 },
-];
+// Runtime level state — populated by loadLevel() below. Kept as top-level
+// `let`s (rather than always indexing through LEVELS[currentLevelIndex])
+// so the rest of the engine reads/mutates them exactly as before.
+let currentLevelIndex = 0;
+let LEVEL_WIDTH, PLAYER_START, PALETTE, PLATFORMS, GAPS, OBSTACLES, POWERUPS, GOAL;
+let LAYER_FAR, LAYER_MID, LAYER_NEAR;
 
-// Obstacles: placeholder types that prove out the collision system.
-//   'block'  — static rectangle the player must jump over
-//   'patrol' — moves back and forth between rangeStart/rangeEnd on a fixed y
-const OBSTACLES = [
-  { type: "block", x: 420, width: 36, height: 60 },
-  { type: "block", x: 1050, width: 36, height: 60 },
-  { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90 },
-  { type: "block", x: 2350, width: 36, height: 60 },
-  { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110 },
-  { type: "block", x: 3700, width: 36, height: 60 },
-];
+function loadLevel(index) {
+  const level = LEVELS[index];
+  currentLevelIndex = index;
+  LEVEL_WIDTH = level.levelWidth;
+  PLAYER_START = level.playerStart;
+  PALETTE = level.palette;
+  GOAL = level.goal || null;
 
-// Power-ups: placeholder type proving the pickup system.
-//   'coffee' — temporary speed boost
-const POWERUPS = [
-  { type: "coffee", x: 950, y: GROUND_Y - 90, radius: 16, collected: false },
-  { type: "coffee", x: 2050, y: PLATFORM_1_Y - 60, radius: 16, collected: false },
-  { type: "coffee", x: 3400, y: GROUND_Y - 90, radius: 16, collected: false },
-];
+  // Deep-clone so mutable runtime fields (obstacle patrol direction,
+  // power-up collected flags) never leak back into the LEVELS templates.
+  PLATFORMS = level.platforms.map((p) => ({ ...p }));
+  GAPS = level.gaps.map((g) => ({ ...g }));
+  OBSTACLES = level.obstacles.map((o) => ({ ...o }));
+  POWERUPS = level.powerups.map((p) => ({ ...p }));
+
+  LAYER_FAR = buildParallaxLayer(260, 13, LEVEL_WIDTH, () => PALETTE.far);
+  LAYER_MID = buildParallaxLayer(180, 7, LEVEL_WIDTH, () => PALETTE.mid);
+  LAYER_NEAR = buildParallaxLayer(140, 5, LEVEL_WIDTH, () => PALETTE.near);
+}
+
+// Load Dublin (level 1) immediately so top-level state below (player,
+// checkpoint, ...) has real PLAYER_START/LEVEL_WIDTH values to read.
+loadLevel(0);
 
 /* ------------------------------------------------------------------ */
 /* 3. CANVAS / DPI SETUP (Client/UI layer)                             */
@@ -173,7 +252,7 @@ const pauseBtn = document.getElementById("pauseBtn");
 if (pauseBtn) pauseBtn.addEventListener("click", togglePause);
 
 function handlePrimaryAction() {
-  if (gameState === "title" || gameState === "gameover") {
+  if (gameState === "title" || gameState === "gameover" || gameState === "win") {
     restartGame();
   }
 }
@@ -232,19 +311,20 @@ let checkpoint = { x: PLAYER_START.x, y: PLAYER_START.y };
 
 const camera = { x: 0 };
 
-let furthestX = 0; // furthest level-x the player has reached (score is based on this)
+let furthestX = 0; // furthest level-x reached in the CURRENT level
+let scoreBase = 0; // score banked from levels already completed
 let boostsCollected = 0;
-let endMessageTimer = 0; // seconds remaining to show "End of test level"
 let lives = STARTING_LIVES;
+let cityBannerTimer = 0; // seconds remaining to show the "Welcome to <city>" card
 
 const SCORE_PER_PIXEL = 0.1; // distance-based score
 const SCORE_PER_BOOST = 50;
 
 function getScore() {
-  return Math.floor(furthestX * SCORE_PER_PIXEL) + boostsCollected * SCORE_PER_BOOST;
+  return Math.floor(scoreBase + furthestX * SCORE_PER_PIXEL) + boostsCollected * SCORE_PER_BOOST;
 }
 
-// gameState: 'title' | 'playing' | 'paused' | 'gameover'
+// gameState: 'title' | 'playing' | 'paused' | 'gameover' | 'win'
 let gameState = "title";
 
 // Title screen image — swap in the real artwork by saving it as
@@ -255,17 +335,40 @@ let titleImageLoaded = false;
 titleImage.onload = () => { titleImageLoaded = true; };
 titleImage.src = "assets/images/title-screen.png";
 
-function restartGame() {
-  lives = STARTING_LIVES;
+// Shantanu's portrait for the win screen (cropped from the title art).
+const shantanuImage = new Image();
+let shantanuImageLoaded = false;
+shantanuImage.onload = () => { shantanuImageLoaded = true; };
+shantanuImage.src = "assets/images/shantanu-portrait.png";
+
+function enterLevel(index) {
+  loadLevel(index);
   furthestX = 0;
-  boostsCollected = 0;
-  endMessageTimer = 0;
   for (const p of POWERUPS) p.collected = false;
   for (const o of OBSTACLES) if (o.type === "patrol") o.dir = 1;
   checkpoint = { x: PLAYER_START.x, y: PLAYER_START.y };
   resetPlayer();
   camera.x = 0;
+  cityBannerTimer = 2.5;
+}
+
+function restartGame() {
+  lives = STARTING_LIVES;
+  scoreBase = 0;
+  boostsCollected = 0;
+  enterLevel(0);
   gameState = "playing";
+}
+
+// Reached the end of a level: advance to the next city, or (on the last
+// level) trigger the win screen instead of loading anything further.
+function completeLevel() {
+  scoreBase += LEVEL_WIDTH * SCORE_PER_PIXEL;
+  if (currentLevelIndex >= LEVELS.length - 1) {
+    gameState = "win";
+    return;
+  }
+  enterLevel(currentLevelIndex + 1);
 }
 
 function loseLife() {
@@ -366,10 +469,12 @@ function updatePlayer(dt) {
     player.hurtTimer = Math.max(0, player.hurtTimer - dt);
   }
 
-  // Reached the end of the level -> loop back to start with a brief message
-  if (player.x > LEVEL_WIDTH) {
-    endMessageTimer = 2.5;
-    resetPlayer();
+  // Reached the end of the level -> advance to the next city (or win, on
+  // the last one). GOAL (Shantanu, Munich only) sits a bit before the
+  // level's right edge so the player visibly walks up to him first.
+  const endTrigger = GOAL ? GOAL.x : LEVEL_WIDTH;
+  if (player.x > endTrigger) {
+    completeLevel();
   }
 }
 
@@ -456,8 +561,8 @@ function updateCamera() {
 function update(dt) {
   if (gameState !== "playing") return;
 
-  if (endMessageTimer > 0) {
-    endMessageTimer -= dt;
+  if (cityBannerTimer > 0) {
+    cityBannerTimer -= dt;
   }
   updatePlayer(dt);
   if (gameState !== "playing") return; // a fall/obstacle hit may have ended the game this frame
@@ -473,11 +578,11 @@ function update(dt) {
 /* ------------------------------------------------------------------ */
 // Pre-generate deterministic layer content so shapes don't jitter frame
 // to frame. Each layer scrolls at its own factor relative to the camera.
-function buildParallaxLayer(spacing, seed, colorPick) {
+function buildParallaxLayer(spacing, seed, levelWidth, colorPick) {
   const items = [];
   let x = 40;
   let i = 0;
-  while (x < LEVEL_WIDTH + 200) {
+  while (x < levelWidth + 200) {
     const t = (i * seed) % 3;
     items.push({ x, kind: t, color: colorPick(t) });
     x += spacing + ((i * 37) % 60);
@@ -485,10 +590,6 @@ function buildParallaxLayer(spacing, seed, colorPick) {
   }
   return items;
 }
-
-const LAYER_FAR = buildParallaxLayer(260, 13, () => "#1b2030");
-const LAYER_MID = buildParallaxLayer(180, 7, () => "#232a3f");
-const LAYER_NEAR = buildParallaxLayer(140, 5, () => "#2c3550");
 
 function drawSilhouette(item, baseY) {
   ctx.fillStyle = item.color;
@@ -527,7 +628,7 @@ function worldToScreenX(x) {
 }
 
 function drawGround() {
-  ctx.fillStyle = "#3a4560";
+  ctx.fillStyle = PALETTE.ground;
   const startX = Math.floor(camera.x);
   const endX = Math.ceil(camera.x + GAME_WIDTH);
 
@@ -547,10 +648,32 @@ function drawGround() {
 }
 
 function drawPlatforms() {
-  ctx.fillStyle = "#4d5b82";
+  ctx.fillStyle = PALETTE.platform;
   for (const p of PLATFORMS) {
     ctx.fillRect(worldToScreenX(p.x), p.y, p.width, p.height);
   }
+}
+
+// Shantanu, waiting at the end of the final level (Munich only).
+function drawGoal() {
+  if (!GOAL) return;
+  const sx = worldToScreenX(GOAL.x);
+  if (sx < -120 || sx > GAME_WIDTH + 120) return;
+
+  const h = 96;
+  const w = shantanuImageLoaded ? (shantanuImage.width / shantanuImage.height) * h : 80;
+  const y = GOAL.y - h;
+
+  if (shantanuImageLoaded) {
+    ctx.drawImage(shantanuImage, sx, y, w, h);
+  } else {
+    ctx.fillStyle = "#ffcc66";
+    ctx.fillRect(sx, y, w, h);
+  }
+  ctx.fillStyle = "#f2f2f2";
+  ctx.font = "bold 14px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("SHANTANU", sx + w / 2, y - 8);
 }
 
 function drawObstacles() {
@@ -612,7 +735,7 @@ function drawHUD() {
   ctx.fillStyle = "#f2f2f2";
   ctx.font = "16px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(`Lives: ${lives}`, 16, 26);
+  ctx.fillText(`${LEVELS[currentLevelIndex].name} — Lives: ${lives}`, 16, 26);
   ctx.fillText(`Score: ${getScore()}`, 16, 46);
   ctx.fillText(`Coffee boosts: ${boostsCollected}`, 16, 66);
   if (player.boostTimer > 0) {
@@ -620,13 +743,13 @@ function drawHUD() {
     ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 86);
   }
 
-  if (endMessageTimer > 0) {
+  if (cityBannerTimer > 0) {
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.fillRect(0, GAME_HEIGHT / 2 - 30, GAME_WIDTH, 60);
     ctx.fillStyle = "#ffffff";
     ctx.font = "28px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("End of test level — looping back to start", GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10);
+    ctx.fillText(`Welcome to ${LEVELS[currentLevelIndex].name}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10);
   }
 }
 
@@ -694,6 +817,27 @@ function drawGameOverScreen() {
   drawStartPromptText("CLICK OR PRESS ENTER TO RESTART", GAME_HEIGHT / 2 + 60);
 }
 
+function drawWinScreen() {
+  ctx.fillStyle = "rgba(0,0,0,0.8)";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+  if (shantanuImageLoaded) {
+    const h = 200;
+    const w = (shantanuImage.width / shantanuImage.height) * h;
+    ctx.drawImage(shantanuImage, GAME_WIDTH / 2 - w / 2, 70, w, h);
+  }
+
+  ctx.fillStyle = "#ffcc66";
+  ctx.font = "bold 40px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("You found Shantanu!", GAME_WIDTH / 2, GAME_HEIGHT - 130);
+  ctx.fillStyle = "#f2f2f2";
+  ctx.font = "18px sans-serif";
+  ctx.fillText(`Final score: ${getScore()} — ${boostsCollected} coffee boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT - 100);
+
+  drawStartPromptText("CLICK OR PRESS ENTER TO PLAY AGAIN", GAME_HEIGHT - 60);
+}
+
 function drawStartPromptText(text, y) {
   const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 300);
   ctx.fillStyle = `rgba(255, 204, 102, ${pulse.toFixed(2)})`;
@@ -709,7 +853,7 @@ function render() {
   }
 
   // Sky background
-  ctx.fillStyle = "#10131c";
+  ctx.fillStyle = PALETTE.sky;
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
   drawParallaxLayer(LAYER_FAR, 0.2, GROUND_Y - 10);
@@ -718,6 +862,7 @@ function render() {
 
   drawGround();
   drawPlatforms();
+  drawGoal();
   drawPowerups();
   drawObstacles();
   drawPlayer();
@@ -725,6 +870,7 @@ function render() {
 
   if (gameState === "paused") drawPauseOverlay();
   if (gameState === "gameover") drawGameOverScreen();
+  if (gameState === "win") drawWinScreen();
 }
 
 /* ------------------------------------------------------------------ */
