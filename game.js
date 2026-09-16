@@ -46,6 +46,17 @@ const PLAYER_HEIGHT = 52;
 
 const CAMERA_LOOKAHEAD = 120; // px the camera leads the player horizontally
 
+const STARTING_LIVES = 3;
+
+// Reachability limits derived from the physics above — used to sanity-check
+// the level data below. With JUMP_VELOCITY=-680 and GRAVITY=1900:
+//   max jump height   = JUMP_VELOCITY^2 / (2*GRAVITY)      ≈ 122px
+//   max jump distance = MOVE_SPEED * 2*(-JUMP_VELOCITY/GRAVITY) ≈ 165px
+// Keep gaps under ~140px and platform heights under ~100px above the
+// ground so every jump in LEVEL DATA stays comfortably reachable.
+const MAX_JUMP_HEIGHT = (JUMP_VELOCITY * JUMP_VELOCITY) / (2 * GRAVITY);
+const MAX_JUMP_DISTANCE = MOVE_SPEED * (2 * (-JUMP_VELOCITY / GRAVITY));
+
 /* ------------------------------------------------------------------ */
 /* 2. LEVEL DATA (Data Layer)                                          */
 /*    Edit these arrays to add/move content. Positions are in level-   */
@@ -58,18 +69,23 @@ const CAMERA_LOOKAHEAD = 120; // px the camera leads the player horizontally
 const LEVEL_WIDTH = 4200;
 const PLAYER_START = { x: 80, y: GROUND_Y - PLAYER_HEIGHT };
 
-// Floating platforms (player can stand on top of these).
+// Floating platforms (player can stand on top of these). Heights are kept
+// under MAX_JUMP_HEIGHT (~122px above ground) so they're jumpable directly
+// from the ground.
+const PLATFORM_1_Y = GROUND_Y - 90; // 90px above ground
+const PLATFORM_2_Y = GROUND_Y - 100; // 100px above ground
 const PLATFORMS = [
-  { x: 1900, y: 330, width: 260, height: 24 }, // hosts a patrol obstacle
-  { x: 3100, y: 300, width: 220, height: 24 },
+  { x: 1900, y: PLATFORM_1_Y, width: 260, height: 24 }, // hosts a patrol obstacle
+  { x: 3100, y: PLATFORM_2_Y, width: 220, height: 24 },
 ];
 
 // Gaps in the ground floor — no ground is drawn/collidable in this x-range.
-// Falling through resets the player (handled the same as an obstacle hit).
+// Falling through costs a life (same as hitting an obstacle). Widths are
+// kept under MAX_JUMP_DISTANCE (~165px) with margin for reaction time.
 const GAPS = [
-  { x: 700, width: 110 },
-  { x: 1500, width: 130 },
-  { x: 2650, width: 150 },
+  { x: 700, width: 100 },
+  { x: 1500, width: 120 },
+  { x: 2650, width: 130 },
 ];
 
 // Obstacles: placeholder types that prove out the collision system.
@@ -78,9 +94,9 @@ const GAPS = [
 const OBSTACLES = [
   { type: "block", x: 420, width: 36, height: 60 },
   { type: "block", x: 1050, width: 36, height: 60 },
-  { type: "patrol", x: 1950, y: 330 - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90 },
+  { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90 },
   { type: "block", x: 2350, width: 36, height: 60 },
-  { type: "patrol", x: 3150, y: 300 - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110 },
+  { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110 },
   { type: "block", x: 3700, width: 36, height: 60 },
 ];
 
@@ -88,7 +104,7 @@ const OBSTACLES = [
 //   'coffee' — temporary speed boost
 const POWERUPS = [
   { type: "coffee", x: 950, y: GROUND_Y - 90, radius: 16, collected: false },
-  { type: "coffee", x: 2050, y: 330 - 60, radius: 16, collected: false },
+  { type: "coffee", x: 2050, y: PLATFORM_1_Y - 60, radius: 16, collected: false },
   { type: "coffee", x: 3400, y: GROUND_Y - 90, radius: 16, collected: false },
 ];
 
@@ -143,6 +159,33 @@ bindTouchButton("btnLeft", () => (input.left = true), () => (input.left = false)
 bindTouchButton("btnRight", () => (input.right = true), () => (input.right = false));
 bindTouchButton("btnJump", () => (input.jump = true), () => (input.jump = false));
 
+// State-transition input: starting from the title screen, pausing/resuming,
+// and restarting after game over. Click/tap anywhere on the canvas, or
+// press Enter, to advance the title/game-over screens; P or Escape toggles
+// pause during play.
+canvas.addEventListener("click", handlePrimaryAction);
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Enter") handlePrimaryAction();
+  if (e.code === "KeyP" || e.code === "Escape") togglePause();
+});
+
+const pauseBtn = document.getElementById("pauseBtn");
+if (pauseBtn) pauseBtn.addEventListener("click", togglePause);
+
+function handlePrimaryAction() {
+  if (gameState === "title" || gameState === "gameover") {
+    restartGame();
+  }
+}
+
+function togglePause() {
+  if (gameState === "playing") {
+    gameState = "paused";
+  } else if (gameState === "paused") {
+    gameState = "playing";
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* 5. GAME STATE (Logic/Middleware)                                     */
 /* ------------------------------------------------------------------ */
@@ -165,6 +208,40 @@ const camera = { x: 0 };
 let elapsedTime = 0;
 let boostsCollected = 0;
 let endMessageTimer = 0; // seconds remaining to show "End of test level"
+let lives = STARTING_LIVES;
+
+// gameState: 'title' | 'playing' | 'paused' | 'gameover'
+let gameState = "title";
+
+// Title screen image — swap in the real artwork by saving it as
+// assets/images/title-screen.png. Falls back to a drawn placeholder
+// (see drawTitleScreen) until that file exists.
+const titleImage = new Image();
+let titleImageLoaded = false;
+titleImage.onload = () => { titleImageLoaded = true; };
+titleImage.src = "assets/images/title-screen.png";
+
+function restartGame() {
+  lives = STARTING_LIVES;
+  elapsedTime = 0;
+  boostsCollected = 0;
+  endMessageTimer = 0;
+  for (const p of POWERUPS) p.collected = false;
+  for (const o of OBSTACLES) if (o.type === "patrol") o.dir = 1;
+  checkpoint = { x: PLAYER_START.x, y: PLAYER_START.y };
+  resetPlayer();
+  camera.x = 0;
+  gameState = "playing";
+}
+
+function loseLife() {
+  lives -= 1;
+  if (lives <= 0) {
+    gameState = "gameover";
+    return;
+  }
+  resetPlayer();
+}
 
 /* ------------------------------------------------------------------ */
 /* 6. COLLISION HELPERS (Logic/Middleware)                              */
@@ -239,9 +316,9 @@ function updatePlayer(dt) {
     }
   }
 
-  // Fell into a gap / off the bottom of the world -> reset
+  // Fell into a gap / off the bottom of the world -> lose a life
   if (player.y > GAME_HEIGHT + 100) {
-    resetPlayer();
+    loseLife();
     return;
   }
 
@@ -274,7 +351,7 @@ function updateObstacles(dt) {
 
     const box = { x: o.x, y: o.type === "block" ? GROUND_Y - o.height : o.y, width: o.width, height: o.height };
     if (rectsOverlap(player, box)) {
-      resetPlayer();
+      loseLife();
     }
   }
 }
@@ -301,10 +378,13 @@ function updateCamera() {
 }
 
 function update(dt) {
+  if (gameState !== "playing") return;
+
   if (endMessageTimer > 0) {
     endMessageTimer -= dt;
   }
   updatePlayer(dt);
+  if (gameState !== "playing") return; // a fall/obstacle hit may have ended the game this frame
   updateObstacles(dt);
   updatePowerups();
   updateCamera();
@@ -437,11 +517,12 @@ function drawHUD() {
   ctx.fillStyle = "#f2f2f2";
   ctx.font = "16px sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(`Time: ${elapsedTime.toFixed(1)}s`, 16, 26);
-  ctx.fillText(`Coffee boosts: ${boostsCollected}`, 16, 46);
+  ctx.fillText(`Lives: ${lives}`, 16, 26);
+  ctx.fillText(`Time: ${elapsedTime.toFixed(1)}s`, 16, 46);
+  ctx.fillText(`Coffee boosts: ${boostsCollected}`, 16, 66);
   if (player.boostTimer > 0) {
     ctx.fillStyle = "#ffcc66";
-    ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 66);
+    ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 86);
   }
 
   if (endMessageTimer > 0) {
@@ -454,7 +535,84 @@ function drawHUD() {
   }
 }
 
+// Placeholder title screen, used until assets/images/title-screen.png
+// exists. Once that file is in place, drawTitleScreen switches to it
+// automatically (see the titleImage loader above).
+function drawTitleScreen() {
+  if (titleImageLoaded) {
+    ctx.drawImage(titleImage, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+    return;
+  }
+
+  ctx.fillStyle = "#10131c";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+  ctx.fillStyle = "#ffcc66";
+  ctx.font = "bold 48px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("THE SHANTANU SIGN-OFF", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40);
+  ctx.fillStyle = "#f2f2f2";
+  ctx.font = "20px sans-serif";
+  ctx.fillText("(drop title-screen.png into assets/images/ to use your art)", GAME_WIDTH / 2, GAME_HEIGHT / 2);
+
+  drawStartPrompt();
+}
+
+function drawStartPrompt() {
+  const boxW = 260;
+  const boxH = 56;
+  const boxX = GAME_WIDTH / 2 - boxW / 2;
+  const boxY = GAME_HEIGHT - 120;
+  const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 300);
+
+  ctx.fillStyle = `rgba(255, 204, 102, ${pulse.toFixed(2)})`;
+  ctx.beginPath();
+  ctx.roundRect(boxX, boxY, boxW, boxH, 10);
+  ctx.fill();
+  ctx.fillStyle = "#10131c";
+  ctx.font = "bold 24px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("PRESS START", GAME_WIDTH / 2, boxY + boxH / 2 + 8);
+}
+
+function drawPauseOverlay() {
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 40px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("PAUSED", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 10);
+  ctx.font = "18px sans-serif";
+  ctx.fillText("Press P / Esc, or tap the pause button, to resume", GAME_WIDTH / 2, GAME_HEIGHT / 2 + 26);
+}
+
+function drawGameOverScreen() {
+  ctx.fillStyle = "rgba(0,0,0,0.75)";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+  ctx.fillStyle = "#d94f4f";
+  ctx.font = "bold 44px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("GAME OVER", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40);
+  ctx.fillStyle = "#f2f2f2";
+  ctx.font = "18px sans-serif";
+  ctx.fillText(`Survived ${elapsedTime.toFixed(1)}s — ${boostsCollected} coffee boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT / 2);
+
+  drawStartPromptText("CLICK OR PRESS ENTER TO RESTART", GAME_HEIGHT / 2 + 60);
+}
+
+function drawStartPromptText(text, y) {
+  const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 300);
+  ctx.fillStyle = `rgba(255, 204, 102, ${pulse.toFixed(2)})`;
+  ctx.font = "bold 22px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(text, GAME_WIDTH / 2, y);
+}
+
 function render() {
+  if (gameState === "title") {
+    drawTitleScreen();
+    return;
+  }
+
   // Sky background
   ctx.fillStyle = "#10131c";
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -469,6 +627,9 @@ function render() {
   drawObstacles();
   drawPlayer();
   drawHUD();
+
+  if (gameState === "paused") drawPauseOverlay();
+  if (gameState === "gameover") drawGameOverScreen();
 }
 
 /* ------------------------------------------------------------------ */

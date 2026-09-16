@@ -6,13 +6,16 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="googlebot" content="noindex, nofollow">
   <title>Finding Shantanu</title>
-  <link rel="stylesheet" href="style.css?v=001">
+  <link rel="stylesheet" href="style.css?v=002">
 </head>
 <body>
   <!-- Client/UI layer: page shell, canvas mount point, and touch controls -->
   <div class="stage">
     <div class="game-frame">
       <canvas id="game" width="960" height="540"></canvas>
+
+      <!-- Always-visible pause toggle (mouse and touch) -->
+      <button class="pause-btn" id="pauseBtn" aria-label="Pause or resume">&#10073;&#10073;</button>
 
       <!-- On-screen touch controls (mobile) -->
       <div class="touch-controls" id="touchControls">
@@ -32,6 +35,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=001"></script>
+  <script src="game.js?v=002"></script>
 </body>
 </html>
