@@ -1345,7 +1345,7 @@ function drawGameOverScreen() {
   ctx.fillText("GAME OVER", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40);
   ctx.fillStyle = "#f2f2f2";
   ctx.font = "18px sans-serif";
-  ctx.fillText(`Score: ${getScore()} — ${boostsCollected} coffee boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT / 2);
+  ctx.fillText(`Score: ${getScore()} — ${boostsCollected} boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
   drawStartPromptText("CLICK OR PRESS ENTER TO RESTART", GAME_HEIGHT / 2 + 60);
 }
