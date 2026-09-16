@@ -79,7 +79,7 @@ const LEVELS = [
   {
     name: "Dublin",
     greeting: "Howya",
-    backgroundSrc: "assets/images/bg_dublin.png",
+    backgroundSrc: "assets/images/bg_dublin.png?v=002",
     levelWidth: 3200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#0d1f18", ground: "#2f5c46", platform: "#3f7d5c" },
