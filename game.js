@@ -433,38 +433,13 @@ let shantanuImageLoaded = false;
 shantanuImage.onload = () => { shantanuImageLoaded = true; };
 shantanuImage.src = "assets/images/shantanu-portrait.png";
 
-// Dublin-only background art, replacing the procedural far/mid/near layers
-// for that level only — Berlin/Munich are untouched (no matching art yet).
-// Draw order back to front: bg_dublin.png -> office mid band -> office near
-// band -> foreground. Each layer is scaled to span the full background
-// height (floor to top of screen) so the stack has no gaps.
+// Dublin-only background art: a single backdrop that scrolls left as the
+// player moves right and loops seamlessly, replacing the procedural
+// far/mid/near layers for that level only — Berlin/Munich are untouched.
 const bgDublinImage = new Image();
 let bgDublinLoaded = false;
 bgDublinImage.onload = () => { bgDublinLoaded = true; };
 bgDublinImage.src = "assets/images/bg_dublin.png";
-
-// background_office.png is a sprite sheet of stacked horizontal bands
-// (far/mid/near, top to bottom), NOT a single flat backdrop. The bands are
-// NOT equal thirds of the image height — there's transparent padding above,
-// below, and between them — so they're measured directly from the asset
-// (see the console.log on load) rather than computed as height/3. The far
-// band (index 0) isn't used — bg_dublin.png covers that depth instead. If
-// this asset is ever regenerated, check that log against OFFICE_BANDS below
-// and update the sy/sh values if the layout shifted.
-const bgOfficeImage = new Image();
-let bgOfficeLoaded = false;
-let OFFICE_BANDS = null;
-bgOfficeImage.onload = () => {
-  bgOfficeLoaded = true;
-  const w = bgOfficeImage.naturalWidth;
-  const h = bgOfficeImage.naturalHeight;
-  console.log(`background_office.png loaded: ${w}x${h} (equal-thirds would be ${(h / 3).toFixed(1)}px per band — the real bands below are NOT that, by design)`);
-  OFFICE_BANDS = [
-    { sy: 465, sh: 231 }, // mid
-    { sy: 751, sh: 219 }, // near (bottom, lightest)
-  ];
-};
-bgOfficeImage.src = "assets/images/background_office.png";
 
 function enterLevel(index) {
   loadLevel(index);
@@ -764,21 +739,6 @@ function drawTiledImageLayer(img, loaded, scrollFactor, displayHeight, y) {
   const offset = ((camera.x * scrollFactor) % displayWidth + displayWidth) % displayWidth;
   for (let x = -offset; x < GAME_WIDTH; x += displayWidth) {
     ctx.drawImage(img, x, y, displayWidth, displayHeight);
-  }
-}
-
-// Draws one horizontal band cut out of background_office.png (see
-// OFFICE_BANDS above), scaled up to `displayHeight` tall (its width scales
-// with it, preserving the band's own aspect ratio) so the stacked layers
-// cover the full background with no gaps, then tiled using that scaled
-// width as the tile period.
-function drawOfficeBand(bandIndex, scrollFactor, displayHeight, destY) {
-  if (!bgOfficeLoaded || !OFFICE_BANDS) return;
-  const band = OFFICE_BANDS[bandIndex];
-  const displayWidth = displayHeight * (bgOfficeImage.naturalWidth / band.sh);
-  const offset = ((camera.x * scrollFactor) % displayWidth + displayWidth) % displayWidth;
-  for (let x = -offset; x < GAME_WIDTH; x += displayWidth) {
-    ctx.drawImage(bgOfficeImage, 0, band.sy, bgOfficeImage.naturalWidth, band.sh, x, destY, displayWidth, displayHeight);
   }
 }
 
@@ -1122,14 +1082,10 @@ function render() {
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
   if (currentLevelIndex === 0) {
-    // Dublin: real art for all depth layers, each spanning the full
-    // background height (floor to top of screen) so the stack has no
-    // gaps. Back to front: the wide skyline backdrop (slowest, ~10%), then
-    // the office mid/near bands cut out of background_office.png, each
-    // faster than the last.
+    // Dublin: single backdrop spanning the full background height (floor
+    // to top of screen), scrolling left as the player moves right and
+    // looping seamlessly.
     drawTiledImageLayer(bgDublinImage, bgDublinLoaded, 0.1, GROUND_Y, 0);
-    drawOfficeBand(0, 0.4, GROUND_Y, 0); // mid
-    drawOfficeBand(1, 0.6, GROUND_Y, 0); // near
   } else {
     // Berlin/Munich: no matching art yet — keep the procedural silhouettes.
     drawParallaxLayer(LAYER_FAR, 0.2, GROUND_Y - 10);
