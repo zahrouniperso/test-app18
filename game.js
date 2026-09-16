@@ -311,6 +311,7 @@ window.addEventListener("keydown", (e) => {
   if (document.activeElement === nameInput) return;
   if (e.code === "Enter") handlePrimaryAction();
   if (e.code === "KeyP" || e.code === "Escape") togglePause();
+  if (e.code === "KeyL") toggleLeaderboard();
 
   // Dev/testing backdoor: Digit1/2/3 jump straight to Dublin/Berlin/Munich
   // while playing or paused, keeping current lives/score. Not shown in any
@@ -401,7 +402,9 @@ chooseMaleBtn.addEventListener("click", () => chooseCharacter("male"));
 chooseFemaleBtn.addEventListener("click", () => chooseCharacter("female"));
 
 function handlePrimaryAction() {
-  if (gameState === "title") {
+  if (gameState === "leaderboard") {
+    hideLeaderboard();
+  } else if (gameState === "title") {
     showNameEntry();
   } else if (gameState === "story" || gameState === "gameover" || gameState === "win") {
     restartGame();
@@ -419,6 +422,23 @@ function togglePause() {
   } else if (gameState === "paused") {
     setGameState("playing");
   }
+}
+
+// Leaderboard can be opened from the title screen or the game-over/win
+// screens; it remembers which one so closing it (via L, click, or Enter)
+// returns to the right place instead of always going back to the title.
+let leaderboardReturnState = "title";
+function toggleLeaderboard() {
+  if (gameState === "leaderboard") {
+    hideLeaderboard();
+  } else if (gameState === "title" || gameState === "gameover" || gameState === "win") {
+    leaderboardReturnState = gameState;
+    setGameState("leaderboard");
+  }
+}
+
+function hideLeaderboard() {
+  setGameState(leaderboardReturnState);
 }
 
 /* ------------------------------------------------------------------ */
@@ -501,8 +521,38 @@ function getScore() {
   return Math.floor(scoreBase + furthestX * SCORE_PER_PIXEL) + boostsCollected * SCORE_PER_BOOST;
 }
 
+/* ------------------------------------------------------------------ */
+/* Leaderboard (Data Layer) — top scores persisted to localStorage,    */
+/* since this is a static/client-only game with no backend.            */
+/* ------------------------------------------------------------------ */
+const LEADERBOARD_KEY = "shantanuSignoffLeaderboard";
+const LEADERBOARD_MAX_ENTRIES = 10;
+
+function loadLeaderboard() {
+  try {
+    const raw = localStorage.getItem(LEADERBOARD_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function recordScore() {
+  const board = loadLeaderboard();
+  board.push({ name: playerName, score: getScore() });
+  board.sort((a, b) => b.score - a.score);
+  board.length = Math.min(board.length, LEADERBOARD_MAX_ENTRIES);
+  try {
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
+  } catch {
+    // Storage full/unavailable (e.g. private browsing) — leaderboard just
+    // won't persist this run; not worth surfacing to the player.
+  }
+}
+
 // gameState: 'title' | 'nameEntry' | 'characterSelect' | 'story' | 'playing'
-//          | 'paused' | 'interlude' | 'gameover' | 'win'
+//          | 'paused' | 'interlude' | 'gameover' | 'win' | 'leaderboard'
 let gameState = "title";
 setGameState("title"); // sync overlay/pause/touch-control visibility with the initial state
 
@@ -630,6 +680,7 @@ function restartGame() {
 function completeLevel() {
   scoreBase += LEVEL_WIDTH * SCORE_PER_PIXEL;
   if (currentLevelIndex >= LEVELS.length - 1) {
+    recordScore();
     setGameState("win");
     return;
   }
@@ -644,6 +695,7 @@ function completeLevel() {
 function loseLife() {
   lives -= 1;
   if (lives <= 0) {
+    recordScore();
     setGameState("gameover");
     return;
   }
@@ -662,6 +714,7 @@ function takeObstacleHit() {
   lives -= 1;
   player.hurtTimer = OBSTACLE_HIT_INVULN;
   if (lives <= 0) {
+    recordScore();
     setGameState("gameover");
     return;
   }
@@ -1235,6 +1288,7 @@ function drawHUD() {
 function drawTitleScreen() {
   if (titleImageLoaded) {
     ctx.drawImage(titleImage, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+    drawLeaderboardHint();
     return;
   }
 
@@ -1249,6 +1303,15 @@ function drawTitleScreen() {
   ctx.fillText("(drop title-screen.png into assets/images/ to use your art)", GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
   drawStartPrompt();
+  drawLeaderboardHint();
+}
+
+function drawLeaderboardHint() {
+  ctx.fillStyle = "rgba(242, 242, 242, 0.85)";
+  ctx.font = "14px sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("Press L for the leaderboard", GAME_WIDTH - 16, GAME_HEIGHT - 16);
+  ctx.textAlign = "center"; // restore the default alignment other draw* fns rely on
 }
 
 // Dimmed backdrop shown behind the real HTML name-entry <input> overlay.
@@ -1371,6 +1434,9 @@ function drawGameOverScreen() {
   ctx.fillText(`Score: ${getScore()} — ${boostsCollected} boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
   drawStartPromptText("CLICK OR PRESS ENTER TO RESTART", GAME_HEIGHT / 2 + 60);
+  ctx.fillStyle = "#9aa4c0";
+  ctx.font = "15px sans-serif";
+  ctx.fillText("Press L for the leaderboard", GAME_WIDTH / 2, GAME_HEIGHT / 2 + 90);
 }
 
 function drawWinScreen() {
@@ -1400,6 +1466,40 @@ function drawWinScreen() {
   drawStartPromptText("CLICK OR PRESS ENTER TO PLAY AGAIN", GAME_HEIGHT - 60);
 }
 
+function drawLeaderboardScreen() {
+  ctx.fillStyle = "#10131c";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+  ctx.fillStyle = "#ffcc66";
+  ctx.font = "bold 34px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("LEADERBOARD", GAME_WIDTH / 2, 80);
+
+  const board = loadLeaderboard();
+  if (board.length === 0) {
+    ctx.fillStyle = "#9aa4c0";
+    ctx.font = "18px sans-serif";
+    ctx.fillText("No scores yet — be the first to find Shantanu!", GAME_WIDTH / 2, 160);
+  } else {
+    const rowHeight = 34;
+    const colName = GAME_WIDTH / 2 - 220;
+    const colScore = GAME_WIDTH / 2 + 220;
+    let y = 150;
+    ctx.font = "20px sans-serif";
+    for (let i = 0; i < board.length; i++) {
+      ctx.fillStyle = i === 0 ? "#ffcc66" : "#f2f2f2";
+      ctx.textAlign = "left";
+      ctx.fillText(`${i + 1}. ${board[i].name}`, colName, y);
+      ctx.textAlign = "right";
+      ctx.fillText(`${board[i].score}`, colScore, y);
+      y += rowHeight;
+    }
+  }
+
+  ctx.textAlign = "center";
+  drawStartPromptText("CLICK, ENTER, OR L TO GO BACK", GAME_HEIGHT - 50);
+}
+
 function drawStartPromptText(text, y) {
   const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 300);
   ctx.fillStyle = `rgba(255, 204, 102, ${pulse.toFixed(2)})`;
@@ -1411,6 +1511,10 @@ function drawStartPromptText(text, y) {
 function render() {
   if (gameState === "title") {
     drawTitleScreen();
+    return;
+  }
+  if (gameState === "leaderboard") {
+    drawLeaderboardScreen();
     return;
   }
   if (gameState === "nameEntry" || gameState === "characterSelect") {
