@@ -4,14 +4,34 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>Hello from Vercel</title>
+  <meta name="googlebot" content="noindex, nofollow">
+  <title>Finding Shantanu</title>
   <link rel="stylesheet" href="style.css?v=001">
 </head>
 <body>
-  <div class="container">
-    <h1>Hello from Vercel</h1>
-    <button id="change" class="color-button">change</button>
+  <!-- Client/UI layer: page shell, canvas mount point, and touch controls -->
+  <div class="stage">
+    <div class="game-frame">
+      <canvas id="game" width="960" height="540"></canvas>
+
+      <!-- On-screen touch controls (mobile) -->
+      <div class="touch-controls" id="touchControls">
+        <div class="touch-side">
+          <button class="touch-btn" id="btnLeft" aria-label="Move left">&#8592;</button>
+          <button class="touch-btn" id="btnRight" aria-label="Move right">&#8594;</button>
+        </div>
+        <div class="touch-side">
+          <button class="touch-btn touch-jump" id="btnJump" aria-label="Jump">&#8593;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shown on narrow/portrait mobile viewports instead of the game -->
+    <div class="rotate-message" id="rotateMessage">
+      <p>Please rotate your device to landscape to play.</p>
+    </div>
   </div>
-  <script src="app.js?v=001"></script>
+
+  <script src="game.js?v=001"></script>
 </body>
 </html>
