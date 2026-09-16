@@ -38,15 +38,18 @@ const MOVE_SPEED = 230;           // px/s
 const JUMP_VELOCITY = -680;       // px/s (negative = up)
 const FRICTION_GROUND = 0.82;     // velocity damping per frame when no input
 
-const COFFEE_BOOST_MULTIPLIER = 1.7;
-const COFFEE_BOOST_DURATION = 4.5; // seconds
+// "Star" power-up (Guinness / Pink Pill / Beer & Pretzel depending on city):
+// temporary speed boost plus immunity to obstacle collisions, like a Mario star.
+const STAR_BOOST_MULTIPLIER = 1.7;
+const STAR_BOOST_DURATION = 4.5; // seconds
 
 const PLAYER_WIDTH = 28;
 const PLAYER_HEIGHT = 52;
 
 const CAMERA_LOOKAHEAD = 120; // px the camera leads the player horizontally
 
-const STARTING_LIVES = 3;
+const STARTING_LIVES = 5;
+const MAX_LIVES = 5; // cap for the Personio-logo extra-life power-up
 
 // Reachability limits derived from the physics above — used to sanity-check
 // the level data below. With JUMP_VELOCITY=-680 and GRAVITY=1900:
@@ -86,14 +89,26 @@ const LEVELS = [
       { x: 650, width: 100 },
       { x: 1950, width: 110 },
     ],
+    // Static blockers: the Luas/DART (Dublin trams/trains are equally
+    // recognisable, and equally annoying). From-above hazard: seagulls.
     obstacles: [
-      { type: "block", x: 400, width: 36, height: 60 },
-      { type: "patrol", x: 1750, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1710, rangeEnd: 1900, speed: 90 },
-      { type: "block", x: 2450, width: 36, height: 60 },
+      { type: "block", x: 400, width: 70, height: 50, color: "#1f6f5c", label: "LUAS" },
+      { type: "block", x: 2450, width: 70, height: 50, color: "#1f6f5c", label: "DART" },
+      {
+        type: "fallingSpawner", visual: "seagull", x: 1100, rangeWidth: 900,
+        minInterval: 2.5, maxInterval: 4.5, fallSpeed: 140, width: 40, height: 28,
+      },
+      {
+        type: "fallingSpawner", visual: "seagull", x: 2600, rangeWidth: 700,
+        minInterval: 2.5, maxInterval: 4.5, fallSpeed: 140, width: 40, height: 28,
+      },
     ],
+    // Guinness (star power-up) either side of the level; a Personio-logo
+    // extra life sits on the platform where a patrol obstacle used to be.
     powerups: [
-      { type: "coffee", x: 900, y: GROUND_Y - 90, radius: 16, collected: false },
-      { type: "coffee", x: 2750, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "star", visual: "guinness", x: 900, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "life", x: 1750, y: PLATFORM_1_Y - 50, radius: 14, collected: false },
+      { type: "star", visual: "guinness", x: 2750, y: GROUND_Y - 90, radius: 16, collected: false },
     ],
   },
   {
@@ -111,17 +126,31 @@ const LEVELS = [
       { x: 1500, width: 120 },
       { x: 2650, width: 130 },
     ],
+    // No static obstacles in Berlin — just yellow e-scooter drivers weaving
+    // around (ground level and up on the platforms), and Friedrich Merz
+    // word-clouds ("work more", "no vacation", ...) raining from above.
     obstacles: [
-      { type: "block", x: 420, width: 36, height: 60 },
-      { type: "block", x: 1050, width: 36, height: 60 },
-      { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90 },
-      { type: "block", x: 2350, width: 36, height: 60 },
-      { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110 },
+      { type: "patrol", x: 420, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 380, rangeEnd: 560, speed: 100, color: "#e6c229", label: "SCOOTER" },
+      { type: "patrol", x: 2350, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 2310, rangeEnd: 2490, speed: 100, color: "#e6c229", label: "SCOOTER" },
+      { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90, color: "#e6c229", label: "SCOOTER" },
+      { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110, color: "#e6c229", label: "SCOOTER" },
+      {
+        type: "fallingSpawner", visual: "wordCloud", x: 1300, rangeWidth: 900,
+        minInterval: 2.2, maxInterval: 4, fallSpeed: 130, width: 56, height: 30,
+        color: "#e8ebf2", label: "NO PTO",
+      },
+      {
+        type: "fallingSpawner", visual: "wordCloud", x: 2800, rangeWidth: 700,
+        minInterval: 2.2, maxInterval: 4, fallSpeed: 130, width: 56, height: 30,
+        color: "#e8ebf2", label: "WORK MORE",
+      },
     ],
+    // Pink pill (star power-up) either side; a Personio-logo extra life on
+    // the first platform.
     powerups: [
-      { type: "coffee", x: 950, y: GROUND_Y - 90, radius: 16, collected: false },
-      { type: "coffee", x: 2050, y: PLATFORM_1_Y - 60, radius: 16, collected: false },
-      { type: "coffee", x: 3400, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "star", visual: "pinkPill", x: 950, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "life", x: 2050, y: PLATFORM_1_Y - 60, radius: 14, collected: false },
+      { type: "star", visual: "pinkPill", x: 3400, y: GROUND_Y - 90, radius: 16, collected: false },
     ],
   },
   {
@@ -141,18 +170,30 @@ const LEVELS = [
       { x: 2600, width: 120 },
       { x: 3600, width: 100 },
     ],
+    // Broken elevators block the ground; Golden Retrievers roam loose
+    // (ground level and up on the platforms); pigeons bomb from above.
     obstacles: [
-      { type: "block", x: 380, width: 36, height: 60 },
-      { type: "patrol", x: 1220, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1210, rangeEnd: 1380, speed: 90 },
-      { type: "block", x: 1750, width: 36, height: 60 },
-      { type: "patrol", x: 2220, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 2210, rangeEnd: 2380, speed: 110 },
-      { type: "block", x: 2850, width: 36, height: 60 },
-      { type: "block", x: 3900, width: 36, height: 60 },
+      { type: "block", x: 380, width: 70, height: 76, visual: "elevator" },
+      { type: "patrol", x: 1220, y: PLATFORM_1_Y - 30, width: 42, height: 30, rangeStart: 1210, rangeEnd: 1380, speed: 90, visual: "dog" },
+      { type: "patrol", x: 1750, y: GROUND_Y - 30, width: 42, height: 30, rangeStart: 1710, rangeEnd: 1900, speed: 100, visual: "dog" },
+      { type: "patrol", x: 2220, y: PLATFORM_2_Y - 30, width: 42, height: 30, rangeStart: 2210, rangeEnd: 2380, speed: 110, visual: "dog" },
+      { type: "block", x: 2850, width: 70, height: 76, visual: "elevator" },
+      { type: "patrol", x: 3900, y: GROUND_Y - 30, width: 42, height: 30, rangeStart: 3860, rangeEnd: 4050, speed: 100, visual: "dog" },
+      {
+        type: "fallingSpawner", visual: "pigeon", x: 1600, rangeWidth: 1000,
+        minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 36, height: 26,
+      },
+      {
+        type: "fallingSpawner", visual: "pigeon", x: 3300, rangeWidth: 700,
+        minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 36, height: 26,
+      },
     ],
+    // Beer & pretzel (star power-up) either side; a Personio-logo extra
+    // life on the second platform.
     powerups: [
-      { type: "coffee", x: 900, y: GROUND_Y - 90, radius: 16, collected: false },
-      { type: "coffee", x: 2300, y: PLATFORM_2_Y - 60, radius: 16, collected: false },
-      { type: "coffee", x: 3450, y: GROUND_Y - 90, radius: 16, collected: false },
+      { type: "star", visual: "beerPretzel", x: 900, y: GROUND_Y - 90, radius: 20, collected: false },
+      { type: "life", x: 2300, y: PLATFORM_2_Y - 60, radius: 14, collected: false },
+      { type: "star", visual: "beerPretzel", x: 3450, y: GROUND_Y - 90, radius: 20, collected: false },
     ],
     // Final city: the level ends with Shantanu instead of just looping.
     goal: { x: 4080, y: GROUND_Y },
@@ -178,7 +219,11 @@ function loadLevel(index) {
   // power-up collected flags) never leak back into the LEVELS templates.
   PLATFORMS = level.platforms.map((p) => ({ ...p }));
   GAPS = level.gaps.map((g) => ({ ...g }));
-  OBSTACLES = level.obstacles.map((o) => ({ ...o }));
+  OBSTACLES = level.obstacles.map((o) =>
+    o.type === "fallingSpawner"
+      ? { ...o, timer: Math.random() * o.minInterval, instances: [] }
+      : { ...o }
+  );
   POWERUPS = level.powerups.map((p) => ({ ...p }));
 
   LAYER_FAR = buildParallaxLayer(260, 13, LEVEL_WIDTH, () => PALETTE.far);
@@ -441,6 +486,33 @@ let bgDublinLoaded = false;
 bgDublinImage.onload = () => { bgDublinLoaded = true; };
 bgDublinImage.src = "assets/images/bg_dublin.png";
 
+// Obstacle/power-up art. obstacles-moving.png is a packed uniform-cell
+// sheet (see the packing note above SPRITE_ROWS for the player) with 5
+// rows x 5 animation frames: seagullFly, seagullPoop, pigeonFly,
+// pigeonPoop, dogRun (in that row order) — the "from above" hazards use
+// the *Poop rows (that's the actual gag), the moving-dog obstacle uses
+// dogRun. The elevator and beer/pretzel images are single (non-animated)
+// cropped graphics.
+const OBSTACLE_SHEET_CELL_W = 263;
+const OBSTACLE_SHEET_CELL_H = 186;
+const OBSTACLE_SHEET_ROWS = { seagullFly: 0, seagullPoop: 1, pigeonFly: 2, pigeonPoop: 3, dogRun: 4 };
+const OBSTACLE_SHEET_FRAME_COUNT = 5;
+
+const obstaclesMovingImage = new Image();
+let obstaclesMovingLoaded = false;
+obstaclesMovingImage.onload = () => { obstaclesMovingLoaded = true; };
+obstaclesMovingImage.src = "assets/images/obstacles-moving.png";
+
+const obstacleElevatorImage = new Image();
+let obstacleElevatorLoaded = false;
+obstacleElevatorImage.onload = () => { obstacleElevatorLoaded = true; };
+obstacleElevatorImage.src = "assets/images/obstacle-elevator.png";
+
+const powerupBeerImage = new Image();
+let powerupBeerLoaded = false;
+powerupBeerImage.onload = () => { powerupBeerLoaded = true; };
+powerupBeerImage.src = "assets/images/powerup-beer-pretzel.png";
+
 function enterLevel(index) {
   loadLevel(index);
   furthestX = 0;
@@ -505,7 +577,7 @@ function resetPlayer() {
 /* 7. UPDATE (Logic/Middleware)                                         */
 /* ------------------------------------------------------------------ */
 function updatePlayer(dt) {
-  const speed = MOVE_SPEED * (player.boostTimer > 0 ? COFFEE_BOOST_MULTIPLIER : 1);
+  const speed = MOVE_SPEED * (player.boostTimer > 0 ? STAR_BOOST_MULTIPLIER : 1);
 
   if (input.left) {
     player.vx = -speed;
@@ -578,6 +650,13 @@ function updatePlayer(dt) {
   }
 }
 
+// A "star" power-up (Guinness/Pink Pill/Beer & Pretzel) grants temporary
+// immunity to obstacle collisions, like a Mario star — checked everywhere
+// an obstacle would otherwise cost a life.
+function isInvincible() {
+  return player.boostTimer > 0;
+}
+
 function updateObstacles(dt) {
   for (const o of OBSTACLES) {
     if (o.type === "patrol") {
@@ -593,8 +672,31 @@ function updateObstacles(dt) {
       }
     }
 
+    if (o.type === "fallingSpawner") {
+      o.timer -= dt;
+      if (o.timer <= 0) {
+        const spawnX = o.x + (Math.random() - 0.5) * (o.rangeWidth || 0);
+        o.instances.push({ x: spawnX, y: -o.height });
+        o.timer = o.minInterval + Math.random() * (o.maxInterval - o.minInterval);
+      }
+      for (let i = o.instances.length - 1; i >= 0; i--) {
+        const inst = o.instances[i];
+        inst.y += o.fallSpeed * dt;
+        const box = { x: inst.x, y: inst.y, width: o.width, height: o.height };
+        if (rectsOverlap(player, box)) {
+          if (!isInvincible()) loseLife();
+          o.instances.splice(i, 1);
+          continue;
+        }
+        if (inst.y > GROUND_Y) {
+          o.instances.splice(i, 1);
+        }
+      }
+      continue;
+    }
+
     const box = { x: o.x, y: o.type === "block" ? GROUND_Y - o.height : o.y, width: o.width, height: o.height };
-    if (rectsOverlap(player, box)) {
+    if (rectsOverlap(player, box) && !isInvincible()) {
       loseLife();
     }
   }
@@ -606,9 +708,11 @@ function updatePowerups() {
     const box = { x: p.x - p.radius, y: p.y - p.radius, width: p.radius * 2, height: p.radius * 2 };
     if (rectsOverlap(player, box)) {
       p.collected = true;
-      if (p.type === "coffee") {
-        player.boostTimer = COFFEE_BOOST_DURATION;
+      if (p.type === "star") {
+        player.boostTimer = STAR_BOOST_DURATION;
         boostsCollected += 1;
+      } else if (p.type === "life") {
+        lives = Math.min(MAX_LIVES, lives + 1);
       }
     }
   }
@@ -798,25 +902,113 @@ function drawGoal() {
   ctx.fillText("SHANTANU", sx + w / 2, y - 8);
 }
 
-function drawObstacles() {
-  ctx.fillStyle = "#d94f4f";
-  for (const o of OBSTACLES) {
-    const y = o.type === "block" ? GROUND_Y - o.height : o.y;
-    ctx.fillRect(worldToScreenX(o.x), y, o.width, o.height);
+// Draws one frame from obstacles-moving.png, animated by wall-clock time
+// (shared across all instances — good enough for a POC, no per-obstacle
+// animation state needed). Returns false (drawing nothing) if not loaded
+// yet, so callers can fall back to a flat placeholder shape.
+function drawObstacleSprite(rowKey, x, y, w, h, flip) {
+  if (!obstaclesMovingLoaded) return false;
+  const row = OBSTACLE_SHEET_ROWS[rowKey];
+  const frame = Math.floor(performance.now() / 120) % OBSTACLE_SHEET_FRAME_COUNT;
+  const sx0 = frame * OBSTACLE_SHEET_CELL_W;
+  const sy0 = row * OBSTACLE_SHEET_CELL_H;
+  if (flip) {
+    ctx.save();
+    ctx.translate(x + w, y);
+    ctx.scale(-1, 1);
+    ctx.drawImage(obstaclesMovingImage, sx0, sy0, OBSTACLE_SHEET_CELL_W, OBSTACLE_SHEET_CELL_H, 0, 0, w, h);
+    ctx.restore();
+  } else {
+    ctx.drawImage(obstaclesMovingImage, sx0, sy0, OBSTACLE_SHEET_CELL_W, OBSTACLE_SHEET_CELL_H, x, y, w, h);
+  }
+  return true;
+}
+
+function drawFlatObstacle(x, y, w, h, color, label) {
+  ctx.fillStyle = color || "#d94f4f";
+  ctx.fillRect(x, y, w, h);
+  if (label) {
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, x + w / 2, y + h / 2 + 4);
   }
 }
+
+function drawObstacles() {
+  for (const o of OBSTACLES) {
+    if (o.type === "fallingSpawner") {
+      for (const inst of o.instances) {
+        const sx = worldToScreenX(inst.x);
+        if (o.visual === "seagull" && drawObstacleSprite("seagullPoop", sx, inst.y, o.width, o.height)) continue;
+        if (o.visual === "pigeon" && drawObstacleSprite("pigeonPoop", sx, inst.y, o.width, o.height)) continue;
+        drawFlatObstacle(sx, inst.y, o.width, o.height, o.color, o.label);
+      }
+      continue;
+    }
+
+    const sx = worldToScreenX(o.x);
+    const y = o.type === "block" ? GROUND_Y - o.height : o.y;
+
+    if (o.visual === "elevator" && obstacleElevatorLoaded) {
+      ctx.drawImage(obstacleElevatorImage, sx, y, o.width, o.height);
+      continue;
+    }
+    if (o.visual === "dog" && drawObstacleSprite("dogRun", sx, y, o.width, o.height, o.dir === 1)) continue;
+
+    drawFlatObstacle(sx, y, o.width, o.height, o.color, o.label);
+  }
+}
+
+// Personio-logo badge: used both for the "life" power-up pickup and for
+// the life-count icons in the HUD (see drawLifeIcons). No real logo asset
+// yet, so this is a simple placeholder mark in the brand teal color.
+function drawPersonioBadge(cx, cy, halfSize, filled) {
+  ctx.fillStyle = filled ? "#14b8a6" : "#3a4152";
+  ctx.beginPath();
+  ctx.roundRect(cx - halfSize, cy - halfSize, halfSize * 2, halfSize * 2, halfSize * 0.35);
+  ctx.fill();
+  ctx.fillStyle = filled ? "#ffffff" : "#6b7488";
+  ctx.font = `bold ${Math.round(halfSize * 1.2)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("P", cx, cy + 1);
+  ctx.textBaseline = "alphabetic";
+}
+
+// Flat-shape "star" power-up styling per city (Guinness/Pink Pill) — Beer
+// & Pretzel uses a real image instead (see below).
+const STAR_POWERUP_STYLES = {
+  guinness: { color: "#241914", textColor: "#e8dcc0", label: "G" },
+  pinkPill: { color: "#e6699a", textColor: "#3a1428", label: "P" },
+};
 
 function drawPowerups() {
   for (const p of POWERUPS) {
     if (p.collected) continue;
-    ctx.fillStyle = "#ffcc66";
+    const sx = worldToScreenX(p.x);
+
+    if (p.type === "life") {
+      drawPersonioBadge(sx, p.y, p.radius, true);
+      continue;
+    }
+
+    if (p.visual === "beerPretzel" && powerupBeerLoaded) {
+      const h = p.radius * 3;
+      const w = (powerupBeerImage.naturalWidth / powerupBeerImage.naturalHeight) * h;
+      ctx.drawImage(powerupBeerImage, sx - w / 2, p.y - h / 2, w, h);
+      continue;
+    }
+
+    const style = STAR_POWERUP_STYLES[p.visual] || { color: "#ffcc66", textColor: "#3a2a10", label: "★" };
+    ctx.fillStyle = style.color;
     ctx.beginPath();
-    ctx.arc(worldToScreenX(p.x), p.y, p.radius, 0, Math.PI * 2);
+    ctx.arc(sx, p.y, p.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#3a2a10";
-    ctx.font = "16px sans-serif";
+    ctx.fillStyle = style.textColor;
+    ctx.font = "bold 14px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("C", worldToScreenX(p.x), p.y + 5);
+    ctx.fillText(style.label, sx, p.y + 5);
   }
 }
 
@@ -867,13 +1059,16 @@ function drawPlayer() {
 
 // Lives shown as heart icons rather than a bare number: filled for
 // remaining lives, hollow for lives already lost.
-function drawHearts(x, y) {
-  const spacing = 22;
-  ctx.font = "20px sans-serif";
-  ctx.textAlign = "left";
-  for (let i = 0; i < STARTING_LIVES; i++) {
-    ctx.fillStyle = i < lives ? "#e0455f" : "#4a5270";
-    ctx.fillText(i < lives ? "♥" : "♡", x + i * spacing, y);
+// Lives shown as Personio-logo badges, top-right: filled for remaining
+// lives, muted for lives already lost.
+function drawLifeIcons() {
+  const halfSize = 11;
+  const spacing = halfSize * 2 + 6;
+  const rightMargin = 16;
+  const cy = 66; // below the HTML pause button, which sits top-right of the canvas
+  for (let i = 0; i < MAX_LIVES; i++) {
+    const cx = GAME_WIDTH - rightMargin - halfSize - (MAX_LIVES - 1 - i) * spacing;
+    drawPersonioBadge(cx, cy, halfSize, i < lives);
   }
 }
 
@@ -882,15 +1077,14 @@ function drawHUD() {
   ctx.font = "16px sans-serif";
   ctx.textAlign = "left";
   ctx.fillText(LEVELS[currentLevelIndex].name, 16, 26);
-  drawHearts(16, 50);
-  ctx.fillStyle = "#f2f2f2";
-  ctx.font = "16px sans-serif";
-  ctx.fillText(`Score: ${getScore()}`, 16, 76);
-  ctx.fillText(`Coffee boosts: ${boostsCollected}`, 16, 96);
+  ctx.fillText(`Score: ${getScore()}`, 16, 46);
+  ctx.fillText(`Power-ups: ${boostsCollected}`, 16, 66);
   if (player.boostTimer > 0) {
     ctx.fillStyle = "#ffcc66";
-    ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 116);
+    ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 86);
   }
+
+  drawLifeIcons();
 
   if (cityBannerTimer > 0) {
     const level = LEVELS[currentLevelIndex];
