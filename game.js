@@ -1074,10 +1074,10 @@ function drawPlayer() {
 // Lives shown as Personio-logo badges, top-right: filled for remaining
 // lives, muted for lives already lost.
 function drawLifeIcons() {
-  const halfSize = 11;
-  const spacing = halfSize * 2 + 6;
+  const halfSize = 16;
+  const spacing = halfSize * 2 + 8;
   const rightMargin = 16;
-  const cy = 66; // below the HTML pause button, which sits top-right of the canvas
+  const cy = 76; // below the HTML pause button, which sits top-right of the canvas
   for (let i = 0; i < MAX_LIVES; i++) {
     const cx = GAME_WIDTH - rightMargin - halfSize - (MAX_LIVES - 1 - i) * spacing;
     drawPersonioBadge(cx, cy, halfSize, i < lives);
@@ -1085,14 +1085,23 @@ function drawLifeIcons() {
 }
 
 function drawHUD() {
-  ctx.fillStyle = "#f2f2f2";
+  // Light backdrop panel behind the score block so it stays readable
+  // against any background art (some city backdrops have light/white
+  // areas near the top where plain light text would otherwise wash out).
+  const panelHeight = player.boostTimer > 0 ? 96 : 76;
+  ctx.fillStyle = "rgba(190, 230, 170, 0.55)";
+  ctx.beginPath();
+  ctx.roundRect(8, 8, 190, panelHeight, 8);
+  ctx.fill();
+
+  ctx.fillStyle = "#12321f";
   ctx.font = "16px sans-serif";
   ctx.textAlign = "left";
   ctx.fillText(LEVELS[currentLevelIndex].name, 16, 26);
   ctx.fillText(`Score: ${getScore()}`, 16, 46);
   ctx.fillText(`Power-ups: ${boostsCollected}`, 16, 66);
   if (player.boostTimer > 0) {
-    ctx.fillStyle = "#ffcc66";
+    ctx.fillStyle = "#7a4a00";
     ctx.fillText(`Boost: ${player.boostTimer.toFixed(1)}s`, 16, 86);
   }
 
