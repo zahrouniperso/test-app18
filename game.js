@@ -139,11 +139,6 @@ const LEVELS = [
       { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 46, height: 40, rangeStart: 3120, rangeEnd: 3280, speed: 110, visual: "scooter", color: "#e6c229", label: "ESC" },
       { type: "block", x: 2850, width: 90, height: 69, visual: "protesters" },
       {
-        type: "fallingSpawner", visual: "wordCloud", x: 1300, rangeWidth: 900,
-        minInterval: 2.2, maxInterval: 4, fallSpeed: 130, width: 56, height: 30,
-        color: "#e8ebf2", label: "NO PTO",
-      },
-      {
         type: "fallingSpawner", visual: "pigeon", x: 2800, rangeWidth: 700,
         minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 50, height: 36,
       },
