@@ -128,14 +128,15 @@ const LEVELS = [
       { x: 1500, width: 120 },
       { x: 2650, width: 130 },
     ],
-    // No static obstacles in Berlin — just yellow e-scooter drivers weaving
-    // around (ground level and up on the platforms), and Friedrich Merz
+    // E-scooter riders weaving around (ground level and up on the
+    // platforms), a protest march blocking the ground, and Friedrich Merz
     // word-clouds ("work more", "no vacation", ...) raining from above.
     obstacles: [
-      { type: "patrol", x: 420, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 380, rangeEnd: 560, speed: 100, color: "#e6c229", label: "ESC" },
-      { type: "patrol", x: 2350, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 2310, rangeEnd: 2490, speed: 100, color: "#e6c229", label: "ESC" },
-      { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90, color: "#e6c229", label: "ESC" },
-      { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110, color: "#e6c229", label: "ESC" },
+      { type: "patrol", x: 420, y: GROUND_Y - 34, width: 46, height: 40, rangeStart: 380, rangeEnd: 560, speed: 100, visual: "scooter", color: "#e6c229", label: "ESC" },
+      { type: "patrol", x: 2350, y: GROUND_Y - 34, width: 46, height: 40, rangeStart: 2310, rangeEnd: 2490, speed: 100, visual: "scooter", color: "#e6c229", label: "ESC" },
+      { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 46, height: 40, rangeStart: 1910, rangeEnd: 2120, speed: 90, visual: "scooter", color: "#e6c229", label: "ESC" },
+      { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 46, height: 40, rangeStart: 3120, rangeEnd: 3280, speed: 110, visual: "scooter", color: "#e6c229", label: "ESC" },
+      { type: "block", x: 2850, width: 90, height: 69, visual: "protesters" },
       {
         type: "fallingSpawner", visual: "wordCloud", x: 1300, rangeWidth: 900,
         minInterval: 2.2, maxInterval: 4, fallSpeed: 130, width: 56, height: 30,
@@ -147,11 +148,11 @@ const LEVELS = [
         color: "#e8ebf2", label: "MERZ",
       },
     ],
-    // Pink pill (star power-up) either side; a Personio-logo extra life on
-    // the first platform.
+    // Pink pill (star power-up) either side; a Personio-logo extra life
+    // ("heart") on the first platform, bigger so it reads clearly.
     powerups: [
       { type: "star", visual: "pinkPill", x: 950, y: GROUND_Y - 90, radius: 16, collected: false },
-      { type: "life", x: 2050, y: PLATFORM_1_Y - 60, radius: 14, collected: false },
+      { type: "life", x: 2050, y: PLATFORM_1_Y - 60, radius: 20, collected: false },
       { type: "star", visual: "pinkPill", x: 3400, y: GROUND_Y - 90, radius: 16, collected: false },
     ],
   },
@@ -531,6 +532,21 @@ const powerupGuinnessImage = new Image();
 let powerupGuinnessLoaded = false;
 powerupGuinnessImage.onload = () => { powerupGuinnessLoaded = true; };
 powerupGuinnessImage.src = "assets/images/powerup-guinness.png";
+
+const powerupPinkPillImage = new Image();
+let powerupPinkPillLoaded = false;
+powerupPinkPillImage.onload = () => { powerupPinkPillLoaded = true; };
+powerupPinkPillImage.src = "assets/images/powerup-pink-pill.png";
+
+const obstacleScooterImage = new Image();
+let obstacleScooterLoaded = false;
+obstacleScooterImage.onload = () => { obstacleScooterLoaded = true; };
+obstacleScooterImage.src = "assets/images/obstacle-scooter.png";
+
+const obstacleProtestersImage = new Image();
+let obstacleProtestersLoaded = false;
+obstacleProtestersImage.onload = () => { obstacleProtestersLoaded = true; };
+obstacleProtestersImage.src = "assets/images/obstacle-protesters.png";
 
 // The Personio logo — used both for the "life" power-up pickup and the
 // life-count icons in the HUD (see drawLifeIcons).
@@ -956,6 +972,14 @@ function drawObstacles() {
       continue;
     }
     if (o.visual === "dog" && drawObstacleSprite("dogRun", sx, y, o.width, o.height, o.dir === 1)) continue;
+    if (o.visual === "scooter" && obstacleScooterLoaded) {
+      ctx.drawImage(obstacleScooterImage, sx, y, o.width, o.height);
+      continue;
+    }
+    if (o.visual === "protesters" && obstacleProtestersLoaded) {
+      ctx.drawImage(obstacleProtestersImage, sx, y, o.width, o.height);
+      continue;
+    }
 
     drawFlatObstacle(sx, y, o.width, o.height, o.color, o.label);
   }
@@ -1020,6 +1044,7 @@ function drawPowerups() {
 
     if (p.visual === "guinness" && drawStarImage(powerupGuinnessImage, powerupGuinnessLoaded, sx, p.y, p.radius)) continue;
     if (p.visual === "beerPretzel" && drawStarImage(powerupBeerImage, powerupBeerLoaded, sx, p.y, p.radius)) continue;
+    if (p.visual === "pinkPill" && drawStarImage(powerupPinkPillImage, powerupPinkPillLoaded, sx, p.y, p.radius)) continue;
 
     const style = STAR_POWERUP_STYLES[p.visual] || { color: "#ffcc66", textColor: "#3a2a10", label: "★" };
     ctx.fillStyle = style.color;
