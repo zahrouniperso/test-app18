@@ -1356,22 +1356,28 @@ function drawGameOverScreen() {
 }
 
 function drawWinScreen() {
-  ctx.fillStyle = "rgba(0,0,0,0.8)";
+  ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
   if (winPhotoLoaded) {
-    const h = 200;
-    const w = (winPhotoImage.width / winPhotoImage.height) * h;
-    ctx.drawImage(winPhotoImage, GAME_WIDTH / 2 - w / 2, 70, w, h);
+    // Cover the whole canvas, cropping whichever axis overflows (like CSS
+    // background-size: cover) so the photo fills the screen with no bars.
+    const imgRatio = winPhotoImage.width / winPhotoImage.height;
+    const canvasRatio = GAME_WIDTH / GAME_HEIGHT;
+    let sx, sy, sw, sh;
+    if (imgRatio > canvasRatio) {
+      sh = winPhotoImage.height;
+      sw = sh * canvasRatio;
+      sx = (winPhotoImage.width - sw) / 2;
+      sy = 0;
+    } else {
+      sw = winPhotoImage.width;
+      sh = sw / canvasRatio;
+      sx = 0;
+      sy = (winPhotoImage.height - sh) / 2;
+    }
+    ctx.drawImage(winPhotoImage, sx, sy, sw, sh, 0, 0, GAME_WIDTH, GAME_HEIGHT);
   }
-
-  ctx.fillStyle = "#ffcc66";
-  ctx.font = "bold 40px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("You found Shantanu!", GAME_WIDTH / 2, GAME_HEIGHT - 130);
-  ctx.fillStyle = "#f2f2f2";
-  ctx.font = "18px sans-serif";
-  ctx.fillText(`Final score: ${getScore()} — ${boostsCollected} coffee boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT - 100);
 
   drawStartPromptText("CLICK OR PRESS ENTER TO PLAY AGAIN", GAME_HEIGHT - 60);
 }
