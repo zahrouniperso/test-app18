@@ -12,7 +12,7 @@
      5. GAME STATE          — player, camera, timers (Logic/Middleware)
      6. COLLISION HELPERS   — (Logic/Middleware)
      7. UPDATE              — physics + obstacle/power-up logic (Logic)
-     8. BACKGROUND          — parallax silhouettes (Client/UI)
+     8. BACKGROUND          — per-city backdrop art (Client/UI)
      9. RENDER              — draw everything (Client/UI)
     10. MAIN LOOP            — requestAnimationFrame driver
 
@@ -79,9 +79,10 @@ const LEVELS = [
   {
     name: "Dublin",
     greeting: "Howya",
+    backgroundSrc: "assets/images/bg_dublin.png",
     levelWidth: 3200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
-    palette: { sky: "#0d1f18", ground: "#2f5c46", platform: "#3f7d5c", far: "#12281f", mid: "#1a3a2c", near: "#245039" },
+    palette: { sky: "#0d1f18", ground: "#2f5c46", platform: "#3f7d5c" },
     platforms: [
       { x: 1700, y: PLATFORM_1_Y, width: 240, height: 24 }, // hosts a patrol obstacle
     ],
@@ -114,9 +115,10 @@ const LEVELS = [
   {
     name: "Berlin",
     greeting: "Hallo",
+    backgroundSrc: "assets/images/bg_berlin.png",
     levelWidth: 3600,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
-    palette: { sky: "#10131c", ground: "#3a4560", platform: "#4d5b82", far: "#1b2030", mid: "#232a3f", near: "#2c3550" },
+    palette: { sky: "#10131c", ground: "#3a4560", platform: "#4d5b82" },
     platforms: [
       { x: 1900, y: PLATFORM_1_Y, width: 260, height: 24 }, // hosts a patrol obstacle
       { x: 3100, y: PLATFORM_2_Y, width: 220, height: 24 },
@@ -130,10 +132,10 @@ const LEVELS = [
     // around (ground level and up on the platforms), and Friedrich Merz
     // word-clouds ("work more", "no vacation", ...) raining from above.
     obstacles: [
-      { type: "patrol", x: 420, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 380, rangeEnd: 560, speed: 100, color: "#e6c229", label: "SCOOTER" },
-      { type: "patrol", x: 2350, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 2310, rangeEnd: 2490, speed: 100, color: "#e6c229", label: "SCOOTER" },
-      { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90, color: "#e6c229", label: "SCOOTER" },
-      { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110, color: "#e6c229", label: "SCOOTER" },
+      { type: "patrol", x: 420, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 380, rangeEnd: 560, speed: 100, color: "#e6c229", label: "ESC" },
+      { type: "patrol", x: 2350, y: GROUND_Y - 34, width: 34, height: 34, rangeStart: 2310, rangeEnd: 2490, speed: 100, color: "#e6c229", label: "ESC" },
+      { type: "patrol", x: 1950, y: PLATFORM_1_Y - 34, width: 34, height: 34, rangeStart: 1910, rangeEnd: 2120, speed: 90, color: "#e6c229", label: "ESC" },
+      { type: "patrol", x: 3150, y: PLATFORM_2_Y - 34, width: 34, height: 34, rangeStart: 3120, rangeEnd: 3280, speed: 110, color: "#e6c229", label: "ESC" },
       {
         type: "fallingSpawner", visual: "wordCloud", x: 1300, rangeWidth: 900,
         minInterval: 2.2, maxInterval: 4, fallSpeed: 130, width: 56, height: 30,
@@ -142,7 +144,7 @@ const LEVELS = [
       {
         type: "fallingSpawner", visual: "wordCloud", x: 2800, rangeWidth: 700,
         minInterval: 2.2, maxInterval: 4, fallSpeed: 130, width: 56, height: 30,
-        color: "#e8ebf2", label: "WORK MORE",
+        color: "#e8ebf2", label: "MERZ",
       },
     ],
     // Pink pill (star power-up) either side; a Personio-logo extra life on
@@ -156,9 +158,10 @@ const LEVELS = [
   {
     name: "Munich",
     greeting: "Servus",
+    backgroundSrc: "assets/images/bg_munic.png",
     levelWidth: 4200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
-    palette: { sky: "#0d1730", ground: "#22406a", platform: "#2f5a8f", far: "#0f1d3a", mid: "#16294d", near: "#1e3766" },
+    palette: { sky: "#0d1730", ground: "#22406a", platform: "#2f5a8f" },
     platforms: [
       { x: 1200, y: PLATFORM_1_Y, width: 200, height: 24 }, // hosts a patrol obstacle
       { x: 2200, y: PLATFORM_2_Y, width: 200, height: 24 }, // hosts a patrol obstacle
@@ -200,12 +203,22 @@ const LEVELS = [
   },
 ];
 
+// Each level's background is a single real backdrop image (loaded once up
+// front, keyed by level index) rather than the old procedural silhouette
+// layers — it scrolls left as the player moves right and loops seamlessly.
+const LEVEL_BACKGROUNDS = LEVELS.map((level) => {
+  const image = new Image();
+  const state = { image, loaded: false };
+  image.onload = () => { state.loaded = true; };
+  image.src = level.backgroundSrc;
+  return state;
+});
+
 // Runtime level state — populated by loadLevel() below. Kept as top-level
 // `let`s (rather than always indexing through LEVELS[currentLevelIndex])
 // so the rest of the engine reads/mutates them exactly as before.
 let currentLevelIndex = 0;
 let LEVEL_WIDTH, PLAYER_START, PALETTE, PLATFORMS, GAPS, OBSTACLES, POWERUPS, GOAL;
-let LAYER_FAR, LAYER_MID, LAYER_NEAR;
 
 function loadLevel(index) {
   const level = LEVELS[index];
@@ -225,10 +238,6 @@ function loadLevel(index) {
       : { ...o }
   );
   POWERUPS = level.powerups.map((p) => ({ ...p }));
-
-  LAYER_FAR = buildParallaxLayer(260, 13, LEVEL_WIDTH, () => PALETTE.far);
-  LAYER_MID = buildParallaxLayer(180, 7, LEVEL_WIDTH, () => PALETTE.mid);
-  LAYER_NEAR = buildParallaxLayer(140, 5, LEVEL_WIDTH, () => PALETTE.near);
 }
 
 // Load Dublin (level 1) immediately so top-level state below (player,
@@ -477,14 +486,6 @@ const shantanuImage = new Image();
 let shantanuImageLoaded = false;
 shantanuImage.onload = () => { shantanuImageLoaded = true; };
 shantanuImage.src = "assets/images/shantanu-portrait.png";
-
-// Dublin-only background art: a single backdrop that scrolls left as the
-// player moves right and loops seamlessly, replacing the procedural
-// far/mid/near layers for that level only — Berlin/Munich are untouched.
-const bgDublinImage = new Image();
-let bgDublinLoaded = false;
-bgDublinImage.onload = () => { bgDublinLoaded = true; };
-bgDublinImage.src = "assets/images/bg_dublin.png";
 
 // Obstacle/power-up art. obstacles-moving.png is a packed uniform-cell
 // sheet (see the packing note above SPRITE_ROWS for the player) with 5
@@ -782,61 +783,15 @@ function update(dt) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 8. BACKGROUND — parallax "office" silhouettes (Client/UI)           */
+/* 8. BACKGROUND — per-city backdrop art (Client/UI)                    */
 /* ------------------------------------------------------------------ */
-// Pre-generate deterministic layer content so shapes don't jitter frame
-// to frame. Each layer scrolls at its own factor relative to the camera.
-function buildParallaxLayer(spacing, seed, levelWidth, colorPick) {
-  const items = [];
-  let x = 40;
-  let i = 0;
-  while (x < levelWidth + 200) {
-    const t = (i * seed) % 3;
-    items.push({ x, kind: t, color: colorPick(t) });
-    x += spacing + ((i * 37) % 60);
-    i++;
-  }
-  return items;
-}
-
-function drawSilhouette(item, baseY) {
-  ctx.fillStyle = item.color;
-  if (item.kind === 0) {
-    // "desk" block
-    ctx.fillRect(item.x, baseY - 40, 70, 40);
-  } else if (item.kind === 1) {
-    // "monitor" block
-    ctx.fillRect(item.x, baseY - 70, 34, 46);
-    ctx.fillRect(item.x + 10, baseY - 26, 14, 8);
-  } else {
-    // "plant" block
-    ctx.beginPath();
-    ctx.roundRect(item.x, baseY - 30, 18, 30, 4);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(item.x + 9, baseY - 36, 14, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-function drawParallaxLayer(items, factor, baseY) {
-  const offset = camera.x * factor;
-  for (const item of items) {
-    const screenX = item.x - offset;
-    if (screenX < -100 || screenX > GAME_WIDTH + 100) continue;
-    drawSilhouette({ ...item, x: screenX }, baseY);
-  }
-}
-
-// Draws a real image as a horizontally-repeating parallax layer: the same
-// camera-offset modulo approach as drawParallaxLayer above, just aimed at
-// a photo/illustration instead of procedural shapes. `displayHeight` sets
-// how tall the image is drawn (its width is derived from the image's own
-// natural aspect ratio — never hardcode a pixel width, since exported art
-// doesn't always come back at the exact size requested). bg_dublin.png is
-// wide relative to a small `scrollFactor`, so it naturally reads as "one
-// continuous backdrop that repeats only every so often" rather than a
-// tight tile.
+// Draws a real image as a horizontally-repeating parallax layer.
+// `displayHeight` sets how tall the image is drawn (its width is derived
+// from the image's own natural aspect ratio — never hardcode a pixel
+// width, since exported art doesn't always come back at the exact size
+// requested). Each city's backdrop is wide relative to its slow
+// `scrollFactor`, so it naturally reads as "one continuous backdrop that
+// repeats only every so often" rather than a tight tile.
 function drawTiledImageLayer(img, loaded, scrollFactor, displayHeight, y) {
   if (!loaded || !img.naturalWidth) return;
   const displayWidth = displayHeight * (img.naturalWidth / img.naturalHeight);
@@ -929,9 +884,16 @@ function drawFlatObstacle(x, y, w, h, color, label) {
   ctx.fillRect(x, y, w, h);
   if (label) {
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 10px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(label, x + w / 2, y + h / 2 + 4);
+    // Shrink the font until the label fits the box (small obstacles get
+    // short labels like "ESC", but this keeps longer ones from overflowing).
+    let fontSize = 10;
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    while (fontSize > 6 && ctx.measureText(label).width > w - 4) {
+      fontSize -= 1;
+      ctx.font = `bold ${fontSize}px sans-serif`;
+    }
+    ctx.fillText(label, x + w / 2, y + h / 2 + fontSize / 3);
   }
 }
 
@@ -1275,17 +1237,11 @@ function render() {
   ctx.fillStyle = PALETTE.sky;
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-  if (currentLevelIndex === 0) {
-    // Dublin: single backdrop spanning the full background height (floor
-    // to top of screen), scrolling left as the player moves right and
-    // looping seamlessly.
-    drawTiledImageLayer(bgDublinImage, bgDublinLoaded, 0.1, GROUND_Y, 0);
-  } else {
-    // Berlin/Munich: no matching art yet — keep the procedural silhouettes.
-    drawParallaxLayer(LAYER_FAR, 0.2, GROUND_Y - 10);
-    drawParallaxLayer(LAYER_MID, 0.45, GROUND_Y);
-    drawParallaxLayer(LAYER_NEAR, 0.7, GROUND_Y + 4);
-  }
+  // Each city's own backdrop: a single image spanning the full background
+  // height (floor to top of screen), scrolling left as the player moves
+  // right and looping seamlessly.
+  const bg = LEVEL_BACKGROUNDS[currentLevelIndex];
+  drawTiledImageLayer(bg.image, bg.loaded, 0.1, GROUND_Y, 0);
 
   drawGround();
   drawPlatforms();
