@@ -129,8 +129,9 @@ const LEVELS = [
       { x: 2650, width: 130 },
     ],
     // E-scooter riders weaving around (ground level and up on the
-    // platforms), a protest march blocking the ground, and Friedrich Merz
-    // word-clouds ("work more", "no vacation", ...) raining from above.
+    // platforms), a protest march blocking the ground, Friedrich Merz
+    // word-clouds ("work more", "no vacation", ...) and Berlin pigeons
+    // both raining from above.
     obstacles: [
       { type: "patrol", x: 420, y: GROUND_Y - 34, width: 46, height: 40, rangeStart: 380, rangeEnd: 560, speed: 100, visual: "scooter", color: "#e6c229", label: "ESC" },
       { type: "patrol", x: 2350, y: GROUND_Y - 34, width: 46, height: 40, rangeStart: 2310, rangeEnd: 2490, speed: 100, visual: "scooter", color: "#e6c229", label: "ESC" },
@@ -143,9 +144,8 @@ const LEVELS = [
         color: "#e8ebf2", label: "NO PTO",
       },
       {
-        type: "fallingSpawner", visual: "wordCloud", x: 2800, rangeWidth: 700,
-        minInterval: 2.2, maxInterval: 4, fallSpeed: 130, width: 56, height: 30,
-        color: "#e8ebf2", label: "MERZ",
+        type: "fallingSpawner", visual: "pigeon", x: 2800, rangeWidth: 700,
+        minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 50, height: 36,
       },
     ],
     // Pink pill (star power-up) either side; a Personio-logo extra life
@@ -531,15 +531,15 @@ winPhotoImage.src = "assets/images/win-photo.png";
 // the *Poop rows (that's the actual gag), the moving-dog obstacle uses
 // dogRun. The elevator and beer/pretzel images are single (non-animated)
 // cropped graphics.
-const OBSTACLE_SHEET_CELL_W = 263;
-const OBSTACLE_SHEET_CELL_H = 186;
+const OBSTACLE_SHEET_CELL_W = 355;
+const OBSTACLE_SHEET_CELL_H = 188;
 const OBSTACLE_SHEET_ROWS = { seagullFly: 0, seagullPoop: 1, pigeonFly: 2, pigeonPoop: 3, dogRun: 4 };
 const OBSTACLE_SHEET_FRAME_COUNT = 5;
 
 const obstaclesMovingImage = new Image();
 let obstaclesMovingLoaded = false;
 obstaclesMovingImage.onload = () => { obstaclesMovingLoaded = true; };
-obstaclesMovingImage.src = "assets/images/obstacles-moving.png";
+obstaclesMovingImage.src = "assets/images/obstacles-moving.png?v=002";
 
 const obstacleElevatorImage = new Image();
 let obstacleElevatorLoaded = false;
