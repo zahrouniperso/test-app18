@@ -201,6 +201,9 @@ function resizeCanvasForDPI() {
   canvas.width = GAME_WIDTH * dpr;
   canvas.height = GAME_HEIGHT * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Resizing the canvas resets all context state, so re-disable smoothing
+  // every time — keeps pixel-art sprites/backgrounds crisp when scaled.
+  ctx.imageSmoothingEnabled = false;
 }
 resizeCanvasForDPI();
 window.addEventListener("resize", resizeCanvasForDPI);
@@ -263,10 +266,31 @@ const nameSubmitBtn = document.getElementById("nameSubmitBtn");
 const characterSelectPanel = document.getElementById("characterSelectPanel");
 const chooseMaleBtn = document.getElementById("chooseMale");
 const chooseFemaleBtn = document.getElementById("chooseFemale");
+const touchControlsEl = document.getElementById("touchControls");
+
+// Single place that owns which HTML overlay (if any) is visible for a given
+// game state, so nameEntry/characterSelect/touch-controls/pause-button can
+// never end up shown on top of each other — every state transition in the
+// file goes through this instead of assigning `gameState` directly.
+const OVERLAY_PANELS = [nameEntryPanel, characterSelectPanel];
+
+function setGameState(newState) {
+  gameState = newState;
+
+  for (const panel of OVERLAY_PANELS) panel.classList.add("ui-hidden");
+  if (newState === "nameEntry") nameEntryPanel.classList.remove("ui-hidden");
+  if (newState === "characterSelect") characterSelectPanel.classList.remove("ui-hidden");
+
+  // The pause button and on-screen touch controls only make sense while
+  // actually playing/paused — keep them out of the way during every menu
+  // screen so they can't visually or click-wise overlap menu buttons.
+  const inGameplay = newState === "playing" || newState === "paused";
+  pauseBtn.classList.toggle("ui-hidden", !inGameplay);
+  touchControlsEl.classList.toggle("ui-hidden", !inGameplay);
+}
 
 function showNameEntry() {
-  gameState = "nameEntry";
-  nameEntryPanel.hidden = false;
+  setGameState("nameEntry");
   nameInput.value = "";
   nameInput.focus();
 }
@@ -274,15 +298,12 @@ function showNameEntry() {
 function submitName() {
   const trimmed = nameInput.value.trim();
   playerName = trimmed || "Player";
-  nameEntryPanel.hidden = true;
-  characterSelectPanel.hidden = false;
-  gameState = "characterSelect";
+  setGameState("characterSelect");
 }
 
 function chooseCharacter(character) {
   playerCharacter = character;
-  characterSelectPanel.hidden = true;
-  gameState = "story";
+  setGameState("story");
 }
 
 nameSubmitBtn.addEventListener("click", submitName);
@@ -307,9 +328,9 @@ function handlePrimaryAction() {
 
 function togglePause() {
   if (gameState === "playing") {
-    gameState = "paused";
+    setGameState("paused");
   } else if (gameState === "paused") {
-    gameState = "playing";
+    setGameState("playing");
   }
 }
 
@@ -390,8 +411,10 @@ function getScore() {
   return Math.floor(scoreBase + furthestX * SCORE_PER_PIXEL) + boostsCollected * SCORE_PER_BOOST;
 }
 
-// gameState: 'title' | 'playing' | 'paused' | 'gameover' | 'win'
+// gameState: 'title' | 'nameEntry' | 'characterSelect' | 'story' | 'playing'
+//          | 'paused' | 'gameover' | 'win'
 let gameState = "title";
+setGameState("title"); // sync overlay/pause/touch-control visibility with the initial state
 
 // Title screen image — swap in the real artwork by saving it as
 // assets/images/title-screen.png. Falls back to a drawn placeholder
@@ -406,6 +429,21 @@ const shantanuImage = new Image();
 let shantanuImageLoaded = false;
 shantanuImage.onload = () => { shantanuImageLoaded = true; };
 shantanuImage.src = "assets/images/shantanu-portrait.png";
+
+// Dublin-only background art: a wide, non-tiled skyline backdrop (far
+// layer) plus a seamlessly-tiling office interior strip (mid layer),
+// replacing the procedural parallax shapes for that level only — Berlin
+// and Munich don't have matching art yet, so they keep the procedural
+// LAYER_FAR/MID/NEAR silhouettes defined in loadLevel().
+const bgDublinImage = new Image();
+let bgDublinLoaded = false;
+bgDublinImage.onload = () => { bgDublinLoaded = true; };
+bgDublinImage.src = "assets/images/bg_dublin.png";
+
+const bgOfficeImage = new Image();
+let bgOfficeLoaded = false;
+bgOfficeImage.onload = () => { bgOfficeLoaded = true; };
+bgOfficeImage.src = "assets/images/background_office.png";
 
 function enterLevel(index) {
   loadLevel(index);
@@ -423,7 +461,7 @@ function restartGame() {
   scoreBase = 0;
   boostsCollected = 0;
   enterLevel(0);
-  gameState = "playing";
+  setGameState("playing");
 }
 
 // Reached the end of a level: advance to the next city, or (on the last
@@ -431,7 +469,7 @@ function restartGame() {
 function completeLevel() {
   scoreBase += LEVEL_WIDTH * SCORE_PER_PIXEL;
   if (currentLevelIndex >= LEVELS.length - 1) {
-    gameState = "win";
+    setGameState("win");
     return;
   }
   enterLevel(currentLevelIndex + 1);
@@ -440,7 +478,7 @@ function completeLevel() {
 function loseLife() {
   lives -= 1;
   if (lives <= 0) {
-    gameState = "gameover";
+    setGameState("gameover");
     return;
   }
   resetPlayer();
@@ -683,6 +721,25 @@ function drawParallaxLayer(items, factor, baseY) {
     const screenX = item.x - offset;
     if (screenX < -100 || screenX > GAME_WIDTH + 100) continue;
     drawSilhouette({ ...item, x: screenX }, baseY);
+  }
+}
+
+// Draws a real image as a horizontally-repeating parallax layer: the same
+// camera-offset modulo approach as drawParallaxLayer above, just aimed at
+// a photo/illustration instead of procedural shapes. `displayHeight` sets
+// how tall the image is drawn (its width is derived from the image's own
+// natural aspect ratio — never hardcode a pixel width, since exported art
+// doesn't always come back at the exact size requested). A small
+// `scrollFactor` plus a wide source image (bg_dublin.png) naturally reads
+// as "one continuous backdrop that repeats only every so often" — a large
+// `scrollFactor` plus a narrow, seamless source image (background_office.png)
+// reads as dense, fast-scrolling tiling. Same function, different inputs.
+function drawTiledImageLayer(img, loaded, scrollFactor, displayHeight, y) {
+  if (!loaded || !img.naturalWidth) return;
+  const displayWidth = displayHeight * (img.naturalWidth / img.naturalHeight);
+  const offset = ((camera.x * scrollFactor) % displayWidth + displayWidth) % displayWidth;
+  for (let x = -offset; x < GAME_WIDTH; x += displayWidth) {
+    ctx.drawImage(img, x, y, displayWidth, displayHeight);
   }
 }
 
@@ -1015,9 +1072,17 @@ function render() {
   ctx.fillStyle = PALETTE.sky;
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-  drawParallaxLayer(LAYER_FAR, 0.2, GROUND_Y - 10);
-  drawParallaxLayer(LAYER_MID, 0.45, GROUND_Y);
-  drawParallaxLayer(LAYER_NEAR, 0.7, GROUND_Y + 4);
+  if (currentLevelIndex === 0) {
+    // Dublin: real art — wide skyline backdrop (slow/sparse), then a
+    // seamlessly-tiling office interior strip (faster/denser) in front of it.
+    drawTiledImageLayer(bgDublinImage, bgDublinLoaded, 0.12, GROUND_Y, 0);
+    drawTiledImageLayer(bgOfficeImage, bgOfficeLoaded, 0.45, 380, GROUND_Y - 380);
+  } else {
+    // Berlin/Munich: no matching art yet — keep the procedural silhouettes.
+    drawParallaxLayer(LAYER_FAR, 0.2, GROUND_Y - 10);
+    drawParallaxLayer(LAYER_MID, 0.45, GROUND_Y);
+    drawParallaxLayer(LAYER_NEAR, 0.7, GROUND_Y + 4);
+  }
 
   drawGround();
   drawPlatforms();

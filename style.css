@@ -10,6 +10,13 @@
   box-sizing: border-box;
 }
 
+/* Hard override so JS-driven visibility always wins over any component's
+   own `display` rule (e.g. .touch-controls sets display:flex), instead of
+   relying on the [hidden] attribute's easily-overridden UA default. */
+.ui-hidden {
+  display: none !important;
+}
+
 html, body {
   height: 100%;
   margin: 0;
