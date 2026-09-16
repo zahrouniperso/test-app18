@@ -430,20 +430,13 @@ let shantanuImageLoaded = false;
 shantanuImage.onload = () => { shantanuImageLoaded = true; };
 shantanuImage.src = "assets/images/shantanu-portrait.png";
 
-// Dublin-only background art: a wide, non-tiled skyline backdrop (far
-// layer) plus a seamlessly-tiling office interior strip (mid layer),
-// replacing the procedural parallax shapes for that level only — Berlin
-// and Munich don't have matching art yet, so they keep the procedural
-// LAYER_FAR/MID/NEAR silhouettes defined in loadLevel().
+// Dublin-only background art: a wide, non-tiled skyline backdrop, replacing
+// the procedural far layer for that level only — the mid/near layers stay
+// procedural, and Berlin/Munich are untouched (no matching art yet).
 const bgDublinImage = new Image();
 let bgDublinLoaded = false;
 bgDublinImage.onload = () => { bgDublinLoaded = true; };
 bgDublinImage.src = "assets/images/bg_dublin.png";
-
-const bgOfficeImage = new Image();
-let bgOfficeLoaded = false;
-bgOfficeImage.onload = () => { bgOfficeLoaded = true; };
-bgOfficeImage.src = "assets/images/background_office.png";
 
 function enterLevel(index) {
   loadLevel(index);
@@ -729,11 +722,10 @@ function drawParallaxLayer(items, factor, baseY) {
 // a photo/illustration instead of procedural shapes. `displayHeight` sets
 // how tall the image is drawn (its width is derived from the image's own
 // natural aspect ratio — never hardcode a pixel width, since exported art
-// doesn't always come back at the exact size requested). A small
-// `scrollFactor` plus a wide source image (bg_dublin.png) naturally reads
-// as "one continuous backdrop that repeats only every so often" — a large
-// `scrollFactor` plus a narrow, seamless source image (background_office.png)
-// reads as dense, fast-scrolling tiling. Same function, different inputs.
+// doesn't always come back at the exact size requested). bg_dublin.png is
+// wide relative to a small `scrollFactor`, so it naturally reads as "one
+// continuous backdrop that repeats only every so often" rather than a
+// tight tile.
 function drawTiledImageLayer(img, loaded, scrollFactor, displayHeight, y) {
   if (!loaded || !img.naturalWidth) return;
   const displayWidth = displayHeight * (img.naturalWidth / img.naturalHeight);
@@ -1073,16 +1065,14 @@ function render() {
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
   if (currentLevelIndex === 0) {
-    // Dublin: real art — wide skyline backdrop (slow/sparse), then a
-    // seamlessly-tiling office interior strip (faster/denser) in front of it.
+    // Dublin: real skyline art for the far layer (slow/sparse); mid/near
+    // stay procedural, same as the other cities.
     drawTiledImageLayer(bgDublinImage, bgDublinLoaded, 0.12, GROUND_Y, 0);
-    drawTiledImageLayer(bgOfficeImage, bgOfficeLoaded, 0.45, 380, GROUND_Y - 380);
   } else {
-    // Berlin/Munich: no matching art yet — keep the procedural silhouettes.
     drawParallaxLayer(LAYER_FAR, 0.2, GROUND_Y - 10);
-    drawParallaxLayer(LAYER_MID, 0.45, GROUND_Y);
-    drawParallaxLayer(LAYER_NEAR, 0.7, GROUND_Y + 4);
   }
+  drawParallaxLayer(LAYER_MID, 0.45, GROUND_Y);
+  drawParallaxLayer(LAYER_NEAR, 0.7, GROUND_Y + 4);
 
   drawGround();
   drawPlatforms();
