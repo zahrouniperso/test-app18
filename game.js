@@ -181,14 +181,17 @@ const LEVELS = [
       { type: "patrol", x: 1750, y: GROUND_Y - 30, width: 42, height: 30, rangeStart: 1710, rangeEnd: 1900, speed: 100, visual: "dog" },
       { type: "patrol", x: 2220, y: PLATFORM_2_Y - 30, width: 42, height: 30, rangeStart: 2210, rangeEnd: 2380, speed: 110, visual: "dog" },
       { type: "block", x: 2850, width: 70, height: 76, visual: "elevator" },
+      // Colleagues who started the Oktoberfest celebrations early, blocking
+      // the hallway.
+      { type: "block", x: 2000, width: 79, height: 60, visual: "revelers" },
       { type: "patrol", x: 3900, y: GROUND_Y - 30, width: 42, height: 30, rangeStart: 3860, rangeEnd: 4050, speed: 100, visual: "dog" },
       {
         type: "fallingSpawner", visual: "pigeon", x: 1600, rangeWidth: 1000,
-        minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 36, height: 26,
+        minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 50, height: 36,
       },
       {
         type: "fallingSpawner", visual: "pigeon", x: 3300, rangeWidth: 700,
-        minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 36, height: 26,
+        minInterval: 2, maxInterval: 3.5, fallSpeed: 150, width: 50, height: 36,
       },
     ],
     // Beer & pretzel (star power-up) either side; a Personio-logo extra
@@ -944,6 +947,12 @@ function drawObstacles() {
     }
     if (o.visual === "dart" && obstacleDartLoaded) {
       ctx.drawImage(obstacleDartImage, sx, y, o.width, o.height);
+      continue;
+    }
+    // Reuses the same image as the beer & pretzel power-up — same
+    // colleagues, now standing in the hallway instead of being collected.
+    if (o.visual === "revelers" && powerupBeerLoaded) {
+      ctx.drawImage(powerupBeerImage, sx, y, o.width, o.height);
       continue;
     }
     if (o.visual === "dog" && drawObstacleSprite("dogRun", sx, y, o.width, o.height, o.dir === 1)) continue;
