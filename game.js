@@ -394,6 +394,11 @@ function handlePrimaryAction() {
     showNameEntry();
   } else if (gameState === "story" || gameState === "gameover" || gameState === "win") {
     restartGame();
+  } else if (gameState === "interlude") {
+    const nextIndex = pendingNextLevel;
+    pendingNextLevel = null;
+    enterLevel(nextIndex);
+    setGameState("playing");
   }
 }
 
@@ -486,9 +491,18 @@ function getScore() {
 }
 
 // gameState: 'title' | 'nameEntry' | 'characterSelect' | 'story' | 'playing'
-//          | 'paused' | 'gameover' | 'win'
+//          | 'paused' | 'interlude' | 'gameover' | 'win'
 let gameState = "title";
 setGameState("title"); // sync overlay/pause/touch-control visibility with the initial state
+
+// Between-city story beats: shown as a full black screen after finishing the
+// level at a given index, before advancing to the next city. Keyed by the
+// index of the level that was just completed.
+const INTERLUDES = {
+  0: "As you were closing for the day, you learnt from Arpit that Shantanu had to fly to Berlin for an urgent meeting and had to reshuffle his plans. As it so happens, you are already scheduled to fly to Berlin tomorrow for a different project, and are hoping to find Shantanu to get his sign-off for the Re-Acceleration project.",
+  1: "In Berlin, you saw Shantanu in an elevator. Hearing your 30s elevator pitch, he mentioned that he needs to discuss more details around the model assumptions. He further informed you that he is travelling to Munich for a Board meeting, but does not yet have full visibility on his schedule. Considering the criticality of the Re-Acceleration project, you decide to go to Munich hoping to get Shantanu to get his sign-off for the project.",
+};
+let pendingNextLevel = null; // level index to enter once the interlude is dismissed
 
 // Title screen image — swap in the real artwork by saving it as
 // assets/images/title-screen.png. Falls back to a drawn placeholder
@@ -595,6 +609,11 @@ function completeLevel() {
     setGameState("win");
     return;
   }
+  if (INTERLUDES[currentLevelIndex]) {
+    pendingNextLevel = currentLevelIndex + 1;
+    setGameState("interlude");
+    return;
+  }
   enterLevel(currentLevelIndex + 1);
 }
 
@@ -606,6 +625,25 @@ function loseLife() {
   }
   resetPlayer();
   player.hurtTimer = 0.5; // brief "fallingDown" flash on respawn
+}
+
+// Getting hit by an obstacle costs a life but — unlike falling into a gap —
+// does NOT send the player back to the checkpoint. It briefly knocks them
+// back and grants invulnerability (see isInvincible) instead, so obstacles
+// are actual hazards to cross/jump past rather than instant "back to the
+// start of the level" walls.
+const OBSTACLE_HIT_INVULN = 1; // seconds of hurt-flash + invulnerability
+function takeObstacleHit() {
+  if (isInvincible()) return;
+  lives -= 1;
+  player.hurtTimer = OBSTACLE_HIT_INVULN;
+  if (lives <= 0) {
+    setGameState("gameover");
+    return;
+  }
+  player.vx = -player.facing * 220;
+  player.vy = -260;
+  player.onGround = false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -706,10 +744,12 @@ function updatePlayer(dt) {
 }
 
 // A "star" power-up (Guinness/Pink Pill/Beer & Pretzel) grants temporary
-// immunity to obstacle collisions, like a Mario star — checked everywhere
-// an obstacle would otherwise cost a life.
+// immunity to obstacle collisions, like a Mario star. The brief hurtTimer
+// window after taking a hit (see takeObstacleHit) also counts as
+// invincible, so a single collision with a wide/moving obstacle can't
+// chain into multiple life losses before the player clears it.
 function isInvincible() {
-  return player.boostTimer > 0;
+  return player.boostTimer > 0 || player.hurtTimer > 0;
 }
 
 function updateObstacles(dt) {
@@ -739,7 +779,7 @@ function updateObstacles(dt) {
         inst.y += o.fallSpeed * dt;
         const box = { x: inst.x, y: inst.y, width: o.width, height: o.height };
         if (rectsOverlap(player, box)) {
-          if (!isInvincible()) loseLife();
+          takeObstacleHit();
           o.instances.splice(i, 1);
           continue;
         }
@@ -751,8 +791,8 @@ function updateObstacles(dt) {
     }
 
     const box = { x: o.x, y: o.type === "block" ? GROUND_Y - o.height : o.y, width: o.width, height: o.height };
-    if (rectsOverlap(player, box) && !isInvincible()) {
-      loseLife();
+    if (rectsOverlap(player, box)) {
+      takeObstacleHit();
     }
   }
 }
@@ -1254,6 +1294,19 @@ function drawStoryScreen() {
   drawStartPromptText("CLICK OR PRESS ENTER TO BEGIN", GAME_HEIGHT - 50);
 }
 
+function drawInterludeScreen() {
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+  ctx.fillStyle = "#f2f2f2";
+  ctx.font = "18px sans-serif";
+  ctx.textAlign = "center";
+  const text = INTERLUDES[currentLevelIndex] || "";
+  drawWrappedText(text, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, 720, 28);
+
+  drawStartPromptText("CLICK OR PRESS ENTER TO CONTINUE", GAME_HEIGHT - 50);
+}
+
 function drawStartPrompt() {
   const boxW = 260;
   const boxH = 56;
@@ -1336,6 +1389,10 @@ function render() {
   }
   if (gameState === "story") {
     drawStoryScreen();
+    return;
+  }
+  if (gameState === "interlude") {
+    drawInterludeScreen();
     return;
   }
 
