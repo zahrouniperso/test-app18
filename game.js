@@ -80,6 +80,7 @@ const LEVELS = [
     name: "Dublin",
     greeting: "Howya",
     backgroundSrc: "assets/images/bg_dublin.png?v=002",
+    musicSrc: "assets/audio/music-dublin.wav",
     levelWidth: 3200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#0d1f18", ground: "#2f5c46", platform: "#3f7d5c" },
@@ -116,6 +117,7 @@ const LEVELS = [
     name: "Berlin",
     greeting: "Hallo",
     backgroundSrc: "assets/images/bg_berlin.png?v=002",
+    musicSrc: "assets/audio/music-berlin.wav",
     levelWidth: 3600,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#10131c", ground: "#3a4560", platform: "#4d5b82" },
@@ -155,6 +157,7 @@ const LEVELS = [
     name: "Munich",
     greeting: "Servus",
     backgroundSrc: "assets/images/bg_munic.png?v=002",
+    musicSrc: "assets/audio/music-munich.wav",
     levelWidth: 4200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#0d1730", ground: "#22406a", platform: "#2f5a8f" },
@@ -340,6 +343,13 @@ const touchControlsEl = document.getElementById("touchControls");
 // file goes through this instead of assigning `gameState` directly.
 const OVERLAY_PANELS = [nameEntryPanel, characterSelectPanel];
 
+// Per-level looping background music. enterLevel() swaps the src to match
+// the current city; setGameState() is the single place that starts/stops
+// it, so it's automatically silenced on pause, menus, game-over, etc.
+const levelMusic = new Audio();
+levelMusic.loop = true;
+levelMusic.volume = 0.5;
+
 function setGameState(newState) {
   gameState = newState;
 
@@ -353,6 +363,12 @@ function setGameState(newState) {
   const inGameplay = newState === "playing" || newState === "paused";
   pauseBtn.classList.toggle("ui-hidden", !inGameplay);
   touchControlsEl.classList.toggle("ui-hidden", !inGameplay);
+
+  if (newState === "playing") {
+    levelMusic.play().catch(() => {}); // ignore autoplay-policy rejections
+  } else {
+    levelMusic.pause();
+  }
 }
 
 function showNameEntry() {
@@ -592,6 +608,13 @@ function enterLevel(index) {
   resetPlayer();
   camera.x = 0;
   cityBannerTimer = 2.5;
+
+  // Swap in this city's music track. setGameState("playing"), called right
+  // after enterLevel() everywhere it's used, is what actually starts it.
+  const musicSrc = LEVELS[index].musicSrc;
+  if (musicSrc && !levelMusic.src.endsWith(musicSrc)) {
+    levelMusic.src = musicSrc;
+  }
 }
 
 function restartGame() {
