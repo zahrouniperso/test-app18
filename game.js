@@ -524,6 +524,18 @@ let obstacleDartLoaded = false;
 obstacleDartImage.onload = () => { obstacleDartLoaded = true; };
 obstacleDartImage.src = "assets/images/obstacle-dart.png";
 
+const powerupGuinnessImage = new Image();
+let powerupGuinnessLoaded = false;
+powerupGuinnessImage.onload = () => { powerupGuinnessLoaded = true; };
+powerupGuinnessImage.src = "assets/images/powerup-guinness.png";
+
+// The Personio logo — used both for the "life" power-up pickup and the
+// life-count icons in the HUD (see drawLifeIcons).
+const logoPersonioImage = new Image();
+let logoPersonioLoaded = false;
+logoPersonioImage.onload = () => { logoPersonioLoaded = true; };
+logoPersonioImage.src = "assets/images/logo-personio.png";
+
 function enterLevel(index) {
   loadLevel(index);
   furthestX = 0;
@@ -944,6 +956,23 @@ function drawObstacles() {
 // the life-count icons in the HUD (see drawLifeIcons). No real logo asset
 // yet, so this is a simple placeholder mark in the brand teal color.
 function drawPersonioBadge(cx, cy, halfSize, filled) {
+  if (logoPersonioLoaded) {
+    const h = halfSize * 2;
+    const w = (logoPersonioImage.naturalWidth / logoPersonioImage.naturalHeight) * h;
+    if (!filled) {
+      // Lost life / not-yet-collected: dim and desaturate the logo instead
+      // of hiding it, so its shape still reads at a glance.
+      ctx.save();
+      ctx.filter = "grayscale(1) opacity(0.35)";
+      ctx.drawImage(logoPersonioImage, cx - w / 2, cy - h / 2, w, h);
+      ctx.restore();
+    } else {
+      ctx.drawImage(logoPersonioImage, cx - w / 2, cy - h / 2, w, h);
+    }
+    return;
+  }
+
+  // Fallback placeholder until the logo image loads.
   ctx.fillStyle = filled ? "#14b8a6" : "#3a4152";
   ctx.beginPath();
   ctx.roundRect(cx - halfSize, cy - halfSize, halfSize * 2, halfSize * 2, halfSize * 0.35);
@@ -956,12 +985,19 @@ function drawPersonioBadge(cx, cy, halfSize, filled) {
   ctx.textBaseline = "alphabetic";
 }
 
-// Flat-shape "star" power-up styling per city (Guinness/Pink Pill) — Beer
-// & Pretzel uses a real image instead (see below).
+// Flat-shape "star" power-up styling for cities without real art yet
+// (Pink Pill) — Guinness and Beer & Pretzel use real images instead.
 const STAR_POWERUP_STYLES = {
-  guinness: { color: "#241914", textColor: "#e8dcc0", label: "G" },
   pinkPill: { color: "#e6699a", textColor: "#3a1428", label: "P" },
 };
+
+function drawStarImage(image, loaded, sx, cy, radius) {
+  if (!loaded) return false;
+  const h = radius * 3;
+  const w = (image.naturalWidth / image.naturalHeight) * h;
+  ctx.drawImage(image, sx - w / 2, cy - h / 2, w, h);
+  return true;
+}
 
 function drawPowerups() {
   for (const p of POWERUPS) {
@@ -973,12 +1009,8 @@ function drawPowerups() {
       continue;
     }
 
-    if (p.visual === "beerPretzel" && powerupBeerLoaded) {
-      const h = p.radius * 3;
-      const w = (powerupBeerImage.naturalWidth / powerupBeerImage.naturalHeight) * h;
-      ctx.drawImage(powerupBeerImage, sx - w / 2, p.y - h / 2, w, h);
-      continue;
-    }
+    if (p.visual === "guinness" && drawStarImage(powerupGuinnessImage, powerupGuinnessLoaded, sx, p.y, p.radius)) continue;
+    if (p.visual === "beerPretzel" && drawStarImage(powerupBeerImage, powerupBeerLoaded, sx, p.y, p.radius)) continue;
 
     const style = STAR_POWERUP_STYLES[p.visual] || { color: "#ffcc66", textColor: "#3a2a10", label: "★" };
     ctx.fillStyle = style.color;
