@@ -512,11 +512,17 @@ let titleImageLoaded = false;
 titleImage.onload = () => { titleImageLoaded = true; };
 titleImage.src = "assets/images/title-screen.png";
 
-// Shantanu's portrait for the win screen (cropped from the title art).
+// Shantanu's portrait, used for his in-level goal sprite (Munich only).
 const shantanuImage = new Image();
 let shantanuImageLoaded = false;
 shantanuImage.onload = () => { shantanuImageLoaded = true; };
 shantanuImage.src = "assets/images/shantanu-portrait.png";
+
+// The win-screen photo, shown once the player reaches Shantanu in Munich.
+const winPhotoImage = new Image();
+let winPhotoLoaded = false;
+winPhotoImage.onload = () => { winPhotoLoaded = true; };
+winPhotoImage.src = "assets/images/win-photo.png";
 
 // Obstacle/power-up art. obstacles-moving.png is a packed uniform-cell
 // sheet (see the packing note above SPRITE_ROWS for the player) with 5
@@ -1353,10 +1359,10 @@ function drawWinScreen() {
   ctx.fillStyle = "rgba(0,0,0,0.8)";
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-  if (shantanuImageLoaded) {
+  if (winPhotoLoaded) {
     const h = 200;
-    const w = (shantanuImage.width / shantanuImage.height) * h;
-    ctx.drawImage(shantanuImage, GAME_WIDTH / 2 - w / 2, 70, w, h);
+    const w = (winPhotoImage.width / winPhotoImage.height) * h;
+    ctx.drawImage(winPhotoImage, GAME_WIDTH / 2 - w / 2, 70, w, h);
   }
 
   ctx.fillStyle = "#ffcc66";
