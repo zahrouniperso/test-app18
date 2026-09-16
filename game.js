@@ -199,16 +199,50 @@ const player = {
   onGround: false,
   facing: 1, // 1 = right, -1 = left
   boostTimer: 0, // seconds remaining of coffee boost
+  hurtTimer: 0, // seconds remaining to show the "fallingDown" animation
+  anim: "idle",
+  frame: 0,
+  animTimer: 0,
 };
+
+// Player spritesheet — packed from assets/sprites-source/male_player_spite_base.png
+// into a uniform grid (see assets/images/player-sheet.png). Each cell is
+// CELL_W x CELL_H with the character anchored to the bottom-center of the
+// cell, so every frame lines up regardless of its original trimmed size.
+const SPRITE_CELL_W = 166;
+const SPRITE_CELL_H = 204;
+const SPRITE_ROWS = ["idle", "runLeft", "runRight", "jumpFall", "fallingDown"];
+const SPRITE_FRAME_COUNTS = { idle: 4, runLeft: 6, runRight: 6, jumpFall: 3, fallingDown: 6 };
+// Animations drawn "as-is" (runLeft/runRight) vs. ones drawn facing right
+// and horizontally flipped for a left-facing player (idle/jumpFall/fallingDown).
+const SPRITE_DIRECTIONAL = { runLeft: true, runRight: true };
+
+// Displayed sprite size (independent of the physics hitbox above, which
+// stays small/simple for collision purposes — the sprite is drawn larger
+// and centered/foot-aligned on that hitbox).
+const SPRITE_DRAW_HEIGHT = 76;
+const SPRITE_DRAW_WIDTH = (SPRITE_CELL_W / SPRITE_CELL_H) * SPRITE_DRAW_HEIGHT;
+
+const playerSheet = new Image();
+let playerSheetLoaded = false;
+playerSheet.onload = () => { playerSheetLoaded = true; };
+playerSheet.src = "assets/images/player-sheet.png";
 
 let checkpoint = { x: PLAYER_START.x, y: PLAYER_START.y };
 
 const camera = { x: 0 };
 
-let elapsedTime = 0;
+let furthestX = 0; // furthest level-x the player has reached (score is based on this)
 let boostsCollected = 0;
 let endMessageTimer = 0; // seconds remaining to show "End of test level"
 let lives = STARTING_LIVES;
+
+const SCORE_PER_PIXEL = 0.1; // distance-based score
+const SCORE_PER_BOOST = 50;
+
+function getScore() {
+  return Math.floor(furthestX * SCORE_PER_PIXEL) + boostsCollected * SCORE_PER_BOOST;
+}
 
 // gameState: 'title' | 'playing' | 'paused' | 'gameover'
 let gameState = "title";
@@ -223,7 +257,7 @@ titleImage.src = "assets/images/title-screen.png";
 
 function restartGame() {
   lives = STARTING_LIVES;
-  elapsedTime = 0;
+  furthestX = 0;
   boostsCollected = 0;
   endMessageTimer = 0;
   for (const p of POWERUPS) p.collected = false;
@@ -241,6 +275,7 @@ function loseLife() {
     return;
   }
   resetPlayer();
+  player.hurtTimer = 0.5; // brief "fallingDown" flash on respawn
 }
 
 /* ------------------------------------------------------------------ */
@@ -260,6 +295,7 @@ function resetPlayer() {
   player.vx = 0;
   player.vy = 0;
   player.boostTimer = 0;
+  player.hurtTimer = 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -322,9 +358,12 @@ function updatePlayer(dt) {
     return;
   }
 
-  // Tick boost timer
+  // Tick boost / hurt timers
   if (player.boostTimer > 0) {
     player.boostTimer = Math.max(0, player.boostTimer - dt);
+  }
+  if (player.hurtTimer > 0) {
+    player.hurtTimer = Math.max(0, player.hurtTimer - dt);
   }
 
   // Reached the end of the level -> loop back to start with a brief message
@@ -370,6 +409,43 @@ function updatePowerups() {
   }
 }
 
+// Picks the current animation row/frame for the player sprite based on
+// physics state: hurt flash > airborne (jump/fall) > running > idle.
+function updateAnimation(dt) {
+  let targetAnim;
+  if (player.hurtTimer > 0) {
+    targetAnim = "fallingDown";
+  } else if (!player.onGround) {
+    targetAnim = "jumpFall";
+  } else if (Math.abs(player.vx) > 10) {
+    targetAnim = player.facing > 0 ? "runRight" : "runLeft";
+  } else {
+    targetAnim = "idle";
+  }
+
+  if (targetAnim !== player.anim) {
+    player.anim = targetAnim;
+    player.frame = 0;
+    player.animTimer = 0;
+  }
+
+  if (targetAnim === "jumpFall") {
+    // Driven by vertical velocity rather than looping by time: rising,
+    // near apex, or falling.
+    if (player.vy < -80) player.frame = 0;
+    else if (player.vy > 80) player.frame = 2;
+    else player.frame = 1;
+    return;
+  }
+
+  const frameDuration = targetAnim.startsWith("run") ? 0.09 : targetAnim === "fallingDown" ? 0.08 : 0.15;
+  player.animTimer += dt;
+  if (player.animTimer >= frameDuration) {
+    player.animTimer -= frameDuration;
+    player.frame = (player.frame + 1) % SPRITE_FRAME_COUNTS[player.anim];
+  }
+}
+
 function updateCamera() {
   const lookahead = CAMERA_LOOKAHEAD * player.facing;
   const target = player.x + PLAYER_WIDTH / 2 - GAME_WIDTH / 2 + lookahead;
@@ -385,10 +461,11 @@ function update(dt) {
   }
   updatePlayer(dt);
   if (gameState !== "playing") return; // a fall/obstacle hit may have ended the game this frame
+  updateAnimation(dt);
   updateObstacles(dt);
   updatePowerups();
   updateCamera();
-  elapsedTime += dt;
+  furthestX = Math.max(furthestX, player.x);
 }
 
 /* ------------------------------------------------------------------ */
@@ -500,17 +577,35 @@ function drawPowerups() {
 
 function drawPlayer() {
   const sx = worldToScreenX(player.x);
-  ctx.fillStyle = player.boostTimer > 0 ? "#ffcc66" : "#5fd0ff";
-  ctx.beginPath();
-  ctx.roundRect(sx, player.y, player.width, player.height, player.width / 2);
-  ctx.fill();
 
-  // Simple facing indicator (a small "eye")
-  ctx.fillStyle = "#0b0c10";
-  const eyeX = player.facing > 0 ? sx + player.width - 8 : sx + 4;
-  ctx.beginPath();
-  ctx.arc(eyeX, player.y + 14, 3, 0, Math.PI * 2);
-  ctx.fill();
+  if (!playerSheetLoaded) {
+    // Fallback shape until the spritesheet finishes loading
+    ctx.fillStyle = player.boostTimer > 0 ? "#ffcc66" : "#5fd0ff";
+    ctx.beginPath();
+    ctx.roundRect(sx, player.y, player.width, player.height, player.width / 2);
+    ctx.fill();
+    return;
+  }
+
+  const rowIndex = SPRITE_ROWS.indexOf(player.anim);
+  const sourceX = player.frame * SPRITE_CELL_W;
+  const sourceY = rowIndex * SPRITE_CELL_H;
+
+  // Draw larger than the (small, simple) physics hitbox: centered
+  // horizontally on it, feet aligned to its bottom.
+  const drawX = sx + player.width / 2 - SPRITE_DRAW_WIDTH / 2;
+  const drawY = player.y + player.height - SPRITE_DRAW_HEIGHT;
+  const needsFlip = player.facing < 0 && !SPRITE_DIRECTIONAL[player.anim];
+
+  ctx.save();
+  if (needsFlip) {
+    ctx.translate(drawX + SPRITE_DRAW_WIDTH, drawY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(playerSheet, sourceX, sourceY, SPRITE_CELL_W, SPRITE_CELL_H, 0, 0, SPRITE_DRAW_WIDTH, SPRITE_DRAW_HEIGHT);
+  } else {
+    ctx.drawImage(playerSheet, sourceX, sourceY, SPRITE_CELL_W, SPRITE_CELL_H, drawX, drawY, SPRITE_DRAW_WIDTH, SPRITE_DRAW_HEIGHT);
+  }
+  ctx.restore();
 }
 
 function drawHUD() {
@@ -518,7 +613,7 @@ function drawHUD() {
   ctx.font = "16px sans-serif";
   ctx.textAlign = "left";
   ctx.fillText(`Lives: ${lives}`, 16, 26);
-  ctx.fillText(`Time: ${elapsedTime.toFixed(1)}s`, 16, 46);
+  ctx.fillText(`Score: ${getScore()}`, 16, 46);
   ctx.fillText(`Coffee boosts: ${boostsCollected}`, 16, 66);
   if (player.boostTimer > 0) {
     ctx.fillStyle = "#ffcc66";
@@ -594,7 +689,7 @@ function drawGameOverScreen() {
   ctx.fillText("GAME OVER", GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40);
   ctx.fillStyle = "#f2f2f2";
   ctx.font = "18px sans-serif";
-  ctx.fillText(`Survived ${elapsedTime.toFixed(1)}s — ${boostsCollected} coffee boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT / 2);
+  ctx.fillText(`Score: ${getScore()} — ${boostsCollected} coffee boosts collected`, GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
   drawStartPromptText("CLICK OR PRESS ENTER TO RESTART", GAME_HEIGHT / 2 + 60);
 }
