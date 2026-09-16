@@ -115,7 +115,7 @@ const LEVELS = [
   {
     name: "Berlin",
     greeting: "Hallo",
-    backgroundSrc: "assets/images/bg_berlin.png",
+    backgroundSrc: "assets/images/bg_berlin.png?v=002",
     levelWidth: 3600,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#10131c", ground: "#3a4560", platform: "#4d5b82" },
@@ -158,7 +158,7 @@ const LEVELS = [
   {
     name: "Munich",
     greeting: "Servus",
-    backgroundSrc: "assets/images/bg_munic.png",
+    backgroundSrc: "assets/images/bg_munic.png?v=002",
     levelWidth: 4200,
     playerStart: { x: 80, y: GROUND_Y - PLAYER_HEIGHT },
     palette: { sky: "#0d1730", ground: "#22406a", platform: "#2f5a8f" },
