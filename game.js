@@ -313,6 +313,19 @@ window.addEventListener("keydown", (e) => {
   if (document.activeElement === nameInput) return;
   if (e.code === "Enter") handlePrimaryAction();
   if (e.code === "KeyP" || e.code === "Escape") togglePause();
+
+  // Dev/testing backdoor: Digit1/2/3 jump straight to Dublin/Berlin/Munich
+  // while playing or paused, keeping current lives/score. Not shown in any
+  // UI — just a shortcut for the team to test a level without replaying
+  // from the start each time.
+  if (gameState === "playing" || gameState === "paused") {
+    const levelKeys = ["Digit1", "Digit2", "Digit3"];
+    const levelIndex = levelKeys.indexOf(e.code);
+    if (levelIndex !== -1 && levelIndex < LEVELS.length) {
+      enterLevel(levelIndex);
+      setGameState("playing");
+    }
+  }
 });
 
 const pauseBtn = document.getElementById("pauseBtn");
