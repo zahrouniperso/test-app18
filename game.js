@@ -360,9 +360,6 @@ const player = {
 // regardless of their original trimmed size. Cell sizes/frame counts differ
 // slightly between characters, so each is looked up via CHARACTERS[key].
 const SPRITE_ROWS = ["idle", "runLeft", "runRight", "jumpFall", "fallingDown"];
-// Animations drawn "as-is" (runLeft/runRight) vs. ones drawn facing right
-// and horizontally flipped for a left-facing player (idle/jumpFall/fallingDown).
-const SPRITE_DIRECTIONAL = { runLeft: true, runRight: true };
 
 // Displayed sprite height (independent of the physics hitbox above, which
 // stays small/simple for collision purposes — the sprite is drawn larger
@@ -375,6 +372,8 @@ const CHARACTERS = {
     cellW: 166,
     cellH: 204,
     frameCounts: { idle: 4, runLeft: 6, runRight: 6, jumpFall: 3, fallingDown: 6 },
+    // The source sheet's runLeft/runRight rows are correctly mirrored art.
+    runIsMirrored: true,
     image: new Image(),
     loaded: false,
   },
@@ -382,6 +381,10 @@ const CHARACTERS = {
     cellW: 131,
     cellH: 145,
     frameCounts: { idle: 4, runLeft: 6, runRight: 6, jumpFall: 3, fallingDown: 5 },
+    // The source sheet's "runRight" row is actually a duplicate of runLeft
+    // (both face left) — not mirrored art. Use runLeft as the one canonical
+    // run pose and flip it in code when facing right instead.
+    runIsMirrored: false,
     image: new Image(),
     loaded: false,
   },
@@ -620,7 +623,11 @@ function updateAnimation(dt) {
   } else if (!player.onGround) {
     targetAnim = "jumpFall";
   } else if (Math.abs(player.vx) > 10) {
-    targetAnim = player.facing > 0 ? "runRight" : "runLeft";
+    // Mirrored-art characters pick the matching row; others always use the
+    // one canonical (left-facing) run row and get flipped in drawPlayer.
+    targetAnim = CHARACTERS[playerCharacter].runIsMirrored
+      ? (player.facing > 0 ? "runRight" : "runLeft")
+      : "runLeft";
   } else {
     targetAnim = "idle";
   }
@@ -835,7 +842,17 @@ function drawPlayer() {
   // horizontally on it, feet aligned to its bottom.
   const drawX = sx + player.width / 2 - drawWidth / 2;
   const drawY = player.y + player.height - SPRITE_DRAW_HEIGHT;
-  const needsFlip = player.facing < 0 && !SPRITE_DIRECTIONAL[player.anim];
+
+  // Idle/jumpFall/fallingDown are single-direction art (canonically facing
+  // right) that we flip when facing left. Running is per-character: a
+  // mirrored-art character (male) always has the correct row already
+  // selected in updateAnimation, so it's never flipped here; an
+  // unmirrored one (female) always renders the one canonical (left-facing)
+  // row and gets flipped when facing right instead.
+  const isRunAnim = player.anim === "runLeft" || player.anim === "runRight";
+  const needsFlip = isRunAnim
+    ? !character.runIsMirrored && player.facing > 0
+    : player.facing < 0;
 
   ctx.save();
   if (needsFlip) {
