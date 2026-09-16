@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="googlebot" content="noindex, nofollow">
   <title>Finding Shantanu</title>
-  <link rel="stylesheet" href="style.css?v=005">
+  <link rel="stylesheet" href="style.css?v=006">
 </head>
 <body>
   <!-- Client/UI layer: page shell, canvas mount point, and touch controls -->
@@ -24,6 +24,22 @@
         <label for="nameInput">What should we call you?</label>
         <input id="nameInput" type="text" maxlength="16" autocomplete="off" placeholder="Your name">
         <button id="nameSubmitBtn" class="overlay-btn" type="button">Continue</button>
+      </div>
+
+      <!-- Character select overlay: shown only during the 'characterSelect'
+           game state, right after name entry. -->
+      <div class="overlay-panel" id="characterSelectPanel" hidden>
+        <label>Choose your character</label>
+        <div class="character-choices">
+          <button class="character-card" id="chooseMale" type="button">
+            <img src="assets/images/preview-male.png" alt="Male character">
+            <span>Male</span>
+          </button>
+          <button class="character-card" id="chooseFemale" type="button">
+            <img src="assets/images/preview-female.png" alt="Female character">
+            <span>Female</span>
+          </button>
+        </div>
       </div>
 
       <!-- On-screen touch controls (mobile) -->
@@ -44,6 +60,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=005"></script>
+  <script src="game.js?v=006"></script>
 </body>
 </html>

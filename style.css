@@ -123,6 +123,39 @@ body {
   filter: brightness(0.9);
 }
 
+.character-choices {
+  display: flex;
+  gap: 20px;
+}
+
+.character-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f2f2f2;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.character-card img {
+  height: 84px;
+  width: auto;
+  image-rendering: pixelated;
+}
+
+.character-card:hover,
+.character-card:active {
+  border-color: var(--accent);
+  background: rgba(255, 204, 102, 0.12);
+}
+
 /* Touch controls: shown on all screens, but styled to be unobtrusive.
    Feel free to hide these on desktop via a pointer:coarse media query. */
 .touch-controls {

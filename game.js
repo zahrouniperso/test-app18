@@ -260,6 +260,9 @@ if (pauseBtn) pauseBtn.addEventListener("click", togglePause);
 const nameEntryPanel = document.getElementById("nameEntryPanel");
 const nameInput = document.getElementById("nameInput");
 const nameSubmitBtn = document.getElementById("nameSubmitBtn");
+const characterSelectPanel = document.getElementById("characterSelectPanel");
+const chooseMaleBtn = document.getElementById("chooseMale");
+const chooseFemaleBtn = document.getElementById("chooseFemale");
 
 function showNameEntry() {
   gameState = "nameEntry";
@@ -272,6 +275,13 @@ function submitName() {
   const trimmed = nameInput.value.trim();
   playerName = trimmed || "Player";
   nameEntryPanel.hidden = true;
+  characterSelectPanel.hidden = false;
+  gameState = "characterSelect";
+}
+
+function chooseCharacter(character) {
+  playerCharacter = character;
+  characterSelectPanel.hidden = true;
   gameState = "story";
 }
 
@@ -283,6 +293,9 @@ nameInput.addEventListener("keydown", (e) => {
     submitName();
   }
 });
+
+chooseMaleBtn.addEventListener("click", () => chooseCharacter("male"));
+chooseFemaleBtn.addEventListener("click", () => chooseCharacter("female"));
 
 function handlePrimaryAction() {
   if (gameState === "title") {
@@ -319,28 +332,45 @@ const player = {
   animTimer: 0,
 };
 
-// Player spritesheet — packed from assets/sprites-source/male_player_spite_base.png
-// into a uniform grid (see assets/images/player-sheet.png). Each cell is
-// CELL_W x CELL_H with the character anchored to the bottom-center of the
-// cell, so every frame lines up regardless of its original trimmed size.
-const SPRITE_CELL_W = 166;
-const SPRITE_CELL_H = 204;
+// Player spritesheets — one per selectable character, each packed from its
+// assets/images/sprite-sources/*.png raw sheet into a uniform grid (see
+// assets/images/player-sheet*.png). Every cell is cellW x cellH with the
+// character anchored to the bottom-center of the cell, so frames line up
+// regardless of their original trimmed size. Cell sizes/frame counts differ
+// slightly between characters, so each is looked up via CHARACTERS[key].
 const SPRITE_ROWS = ["idle", "runLeft", "runRight", "jumpFall", "fallingDown"];
-const SPRITE_FRAME_COUNTS = { idle: 4, runLeft: 6, runRight: 6, jumpFall: 3, fallingDown: 6 };
 // Animations drawn "as-is" (runLeft/runRight) vs. ones drawn facing right
 // and horizontally flipped for a left-facing player (idle/jumpFall/fallingDown).
 const SPRITE_DIRECTIONAL = { runLeft: true, runRight: true };
 
-// Displayed sprite size (independent of the physics hitbox above, which
+// Displayed sprite height (independent of the physics hitbox above, which
 // stays small/simple for collision purposes — the sprite is drawn larger
-// and centered/foot-aligned on that hitbox).
+// and centered/foot-aligned on that hitbox). Width is derived per-character
+// from its own cell aspect ratio.
 const SPRITE_DRAW_HEIGHT = 76;
-const SPRITE_DRAW_WIDTH = (SPRITE_CELL_W / SPRITE_CELL_H) * SPRITE_DRAW_HEIGHT;
 
-const playerSheet = new Image();
-let playerSheetLoaded = false;
-playerSheet.onload = () => { playerSheetLoaded = true; };
-playerSheet.src = "assets/images/player-sheet.png";
+const CHARACTERS = {
+  male: {
+    cellW: 166,
+    cellH: 204,
+    frameCounts: { idle: 4, runLeft: 6, runRight: 6, jumpFall: 3, fallingDown: 6 },
+    image: new Image(),
+    loaded: false,
+  },
+  female: {
+    cellW: 131,
+    cellH: 145,
+    frameCounts: { idle: 4, runLeft: 6, runRight: 6, jumpFall: 3, fallingDown: 5 },
+    image: new Image(),
+    loaded: false,
+  },
+};
+CHARACTERS.male.image.onload = () => { CHARACTERS.male.loaded = true; };
+CHARACTERS.male.image.src = "assets/images/player-sheet.png";
+CHARACTERS.female.image.onload = () => { CHARACTERS.female.loaded = true; };
+CHARACTERS.female.image.src = "assets/images/player-sheet-female.png";
+
+let playerCharacter = "male"; // chosen on the character-select screen
 
 let checkpoint = { x: PLAYER_START.x, y: PLAYER_START.y };
 
@@ -583,7 +613,7 @@ function updateAnimation(dt) {
   player.animTimer += dt;
   if (player.animTimer >= frameDuration) {
     player.animTimer -= frameDuration;
-    player.frame = (player.frame + 1) % SPRITE_FRAME_COUNTS[player.anim];
+    player.frame = (player.frame + 1) % CHARACTERS[playerCharacter].frameCounts[player.anim];
   }
 }
 
@@ -736,8 +766,9 @@ function drawPowerups() {
 
 function drawPlayer() {
   const sx = worldToScreenX(player.x);
+  const character = CHARACTERS[playerCharacter];
 
-  if (!playerSheetLoaded) {
+  if (!character.loaded) {
     // Fallback shape until the spritesheet finishes loading
     ctx.fillStyle = player.boostTimer > 0 ? "#ffcc66" : "#5fd0ff";
     ctx.beginPath();
@@ -746,23 +777,24 @@ function drawPlayer() {
     return;
   }
 
+  const drawWidth = (character.cellW / character.cellH) * SPRITE_DRAW_HEIGHT;
   const rowIndex = SPRITE_ROWS.indexOf(player.anim);
-  const sourceX = player.frame * SPRITE_CELL_W;
-  const sourceY = rowIndex * SPRITE_CELL_H;
+  const sourceX = player.frame * character.cellW;
+  const sourceY = rowIndex * character.cellH;
 
   // Draw larger than the (small, simple) physics hitbox: centered
   // horizontally on it, feet aligned to its bottom.
-  const drawX = sx + player.width / 2 - SPRITE_DRAW_WIDTH / 2;
+  const drawX = sx + player.width / 2 - drawWidth / 2;
   const drawY = player.y + player.height - SPRITE_DRAW_HEIGHT;
   const needsFlip = player.facing < 0 && !SPRITE_DIRECTIONAL[player.anim];
 
   ctx.save();
   if (needsFlip) {
-    ctx.translate(drawX + SPRITE_DRAW_WIDTH, drawY);
+    ctx.translate(drawX + drawWidth, drawY);
     ctx.scale(-1, 1);
-    ctx.drawImage(playerSheet, sourceX, sourceY, SPRITE_CELL_W, SPRITE_CELL_H, 0, 0, SPRITE_DRAW_WIDTH, SPRITE_DRAW_HEIGHT);
+    ctx.drawImage(character.image, sourceX, sourceY, character.cellW, character.cellH, 0, 0, drawWidth, SPRITE_DRAW_HEIGHT);
   } else {
-    ctx.drawImage(playerSheet, sourceX, sourceY, SPRITE_CELL_W, SPRITE_CELL_H, drawX, drawY, SPRITE_DRAW_WIDTH, SPRITE_DRAW_HEIGHT);
+    ctx.drawImage(character.image, sourceX, sourceY, character.cellW, character.cellH, drawX, drawY, drawWidth, SPRITE_DRAW_HEIGHT);
   }
   ctx.restore();
 }
@@ -970,7 +1002,7 @@ function render() {
     drawTitleScreen();
     return;
   }
-  if (gameState === "nameEntry") {
+  if (gameState === "nameEntry" || gameState === "characterSelect") {
     drawNameEntryBackground();
     return;
   }
