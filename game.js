@@ -1289,6 +1289,7 @@ function drawTitleScreen() {
   if (titleImageLoaded) {
     ctx.drawImage(titleImage, 0, 0, GAME_WIDTH, GAME_HEIGHT);
     drawLeaderboardHint();
+    drawTitleEmoji();
     return;
   }
 
@@ -1304,6 +1305,14 @@ function drawTitleScreen() {
 
   drawStartPrompt();
   drawLeaderboardHint();
+  drawTitleEmoji();
+}
+
+function drawTitleEmoji() {
+  ctx.font = "32px sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("✈️", GAME_WIDTH - 16, 48);
+  ctx.textAlign = "center"; // restore the default alignment other draw* fns rely on
 }
 
 function drawLeaderboardHint() {
